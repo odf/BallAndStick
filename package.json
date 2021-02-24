@@ -1,0 +1,14 @@
+{
+  "name": "BallAndStick",
+  "version": "1.0.0",
+  "description": "Viewer for molecular ball-and-stick models.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Olaf Delgado-Friedrichs",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "elm": "^0.19.1-5"
+  }
+}
