@@ -278,7 +278,7 @@ meshes =
 
 stickMaterial : Material
 stickMaterial =
-    { color = Color.hsl 0.3 0.9 0.7
+    { color = Color.hsl 0.17 0.9 0.7
     , roughness = 0.5
     , metallic = 0.1
     }
@@ -314,6 +314,11 @@ instances =
       , idxMesh = 1
       , idxInstance = 0
       }
+    , { material = { ballMaterial | color = Color.hsl 0.33 0.9 0.5 }
+      , transform = Mat4.makeTranslate (vec3 0 0 1)
+      , idxMesh = 1
+      , idxInstance = 1
+      }
     ]
 
 
@@ -322,7 +327,7 @@ init _ =
     let
         model =
             View3d.init
-                |> View3d.setSize { width = 400, height = 400 }
+                |> View3d.setSize { width = 768, height = 768 }
                 |> View3d.setScene (Just meshes) instances
                 |> View3d.encompass
     in
