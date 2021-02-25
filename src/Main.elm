@@ -1,10 +1,11 @@
 module Main exposing (main)
 
+import Array exposing (Array)
 import Browser
 import Color
 import Html
 import Math.Matrix4 as Mat4
-import Math.Vector3 as Vec3 exposing (vec3)
+import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import View3d.Main as View3d
 import View3d.Mesh as Mesh
 import View3d.RendererCommon exposing (..)
@@ -46,6 +47,28 @@ options =
     }
 
 
+sectorData : Array Vec3 -> List Int -> List { idx : Int, normal : Vec3 }
+sectorData allVertices face =
+    let
+        getPos v =
+            Array.get v allVertices |> Maybe.withDefault (vec3 0 0 0)
+
+        verts =
+            List.map (\v -> { idx = v, pos = getPos v }) face
+
+        compute u v w =
+            { idx = v.idx
+            , normal = Vec3.cross (Vec3.sub w.pos v.pos) (Vec3.sub u.pos v.pos)
+            }
+    in
+    case verts of
+        a :: b :: rest ->
+            List.map3 compute verts (b :: rest ++ [ a ]) (rest ++ [ a, b ])
+
+        _ ->
+            []
+
+
 triangulate : List vertex -> List ( vertex, vertex, vertex )
 triangulate corners =
     case corners of
@@ -56,77 +79,82 @@ triangulate corners =
             []
 
 
-cylinder : Float -> Float -> Int -> Mesh.Mesh Vertex
-cylinder radius length nrSegments =
+makeMesh : { verts : List Vec3, faces : List (List Int) } -> Mesh.Mesh Vertex
+makeMesh { verts, faces } =
+    let
+        vertices =
+            Array.fromList verts
+
+        sectors =
+            List.concatMap (\f -> sectorData vertices f) faces
+
+        vertexNormal idx =
+            sectors
+                |> List.filter (\e -> e.idx == idx)
+                |> List.map (\e -> e.normal)
+                |> List.foldl Vec3.add (vec3 0 0 0)
+
+        verticesWithNormals =
+            List.indexedMap
+                (\idx pos -> { position = pos, normal = vertexNormal idx })
+                verts
+
+        triangles =
+            List.concatMap triangulate faces
+    in
+    Mesh.IndexedTriangles verticesWithNormals triangles
+
+
+cylinder : Float -> Int -> { verts : List Vec3, faces : List (List Int) }
+cylinder radius nrSegments =
     let
         n =
             nrSegments
 
-        ring =
-            List.range 0 (n - 1)
-                |> List.map (\i -> toFloat i * 2 * pi / toFloat n)
-                |> List.map (\alpha -> vec3 (cos alpha) (sin alpha) 0.0)
+        r =
+            radius
+
+        a =
+            2 * pi / toFloat n
 
         bottom =
-            List.map
-                (\p -> { position = Vec3.scale radius p, normal = p })
-                ring
-
-        bottomInset =
-            List.map
-                (\v ->
-                    { position = Vec3.scale 0.9 v.position
-                    , normal = vec3 0 0 -1
-                    }
-                )
-                bottom
+            List.range 0 (n - 1)
+                |> List.map toFloat
+                |> List.map (\i -> ( r * cos (a * i), r * sin (a * i), 0 ))
 
         top =
-            List.map
-                (\v ->
-                    { v
-                        | position = Vec3.add v.position (vec3 0 0 length)
-                    }
-                )
-                bottom
+            List.map (\( x, y, z ) -> ( x, y, 1 - z )) bottom
+
+        bottomInset =
+            List.map (\( x, y, z ) -> ( 0.9 * x, 0.9 * y, z )) bottom
 
         topInset =
-            List.map
-                (\v ->
-                    { position = Vec3.add v.position (vec3 0 0 length)
-                    , normal = vec3 0 0 1
-                    }
-                )
-                bottomInset
+            List.map (\( x, y, z ) -> ( 0.9 * x, 0.9 * y, z )) top
 
         vertices =
             List.concat [ bottomInset, bottom, top, topInset ]
+                |> List.map (\( x, y, z ) -> vec3 x y z)
+
+        ring s t =
+            List.range 0 (n - 1)
+                |> List.map (\i -> ( i, modBy n (i + 1) ))
+                |> List.map (\( i, j ) -> [ i + s, j + s, j + t, i + t ])
 
         faces =
             List.concat
                 [ [ List.range 0 (n - 1) |> List.reverse ]
+                , ring 0 n
+                , ring n (2 * n)
+                , ring (2 * n) (3 * n)
                 , [ List.range (3 * n) (4 * n - 1) ]
-                , List.range 0 (n - 1)
-                    |> List.concatMap
-                        (\i ->
-                            let
-                                j =
-                                    modBy n (i + 1)
-                            in
-                            [ 0, n, 2 * n ]
-                                |> List.map
-                                    (\k ->
-                                        [ i + k, j + k, j + k + n, i + k + n ]
-                                    )
-                        )
                 ]
     in
-    Mesh.IndexedTriangles vertices (List.concatMap triangulate faces)
+    { verts = vertices, faces = faces }
 
 
 meshes : List (Mesh.Mesh Vertex)
 meshes =
-    [ cylinder 0.1 1.0 48 ]
+    [ cylinder 0.1 48 |> makeMesh ]
 
 
 stickMaterial : Material
