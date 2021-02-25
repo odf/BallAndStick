@@ -3,6 +3,8 @@ module Main exposing (main)
 import Array exposing (Array)
 import Browser
 import Color
+import DelaunayTriangulation2d exposing (faces)
+import Dict
 import Html
 import Math.Matrix4 as Mat4
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
@@ -47,6 +49,92 @@ options =
     }
 
 
+type alias PreMesh =
+    { verts : List Vec3, faces : List (List Int) }
+
+
+edges : List Int -> List ( Int, Int )
+edges face =
+    case face of
+        a :: rest ->
+            List.map2 Tuple.pair face (rest ++ [ a ])
+
+        _ ->
+            []
+
+
+sectors : List Int -> List ( Int, Int, Int )
+sectors face =
+    case face of
+        a :: b :: rest ->
+            List.map3 (\u v w -> ( u, v, w ))
+                face
+                (b :: rest ++ [ a ])
+                (rest ++ [ a, b ])
+
+        _ ->
+            []
+
+
+subdivide : PreMesh -> PreMesh
+subdivide { verts, faces } =
+    let
+        n =
+            List.length verts
+
+        vertexArray =
+            Array.fromList verts
+
+        getPos v =
+            Array.get v vertexArray |> Maybe.withDefault (vec3 0 0 0)
+
+        centroid vs =
+            vs
+                |> List.map getPos
+                |> List.foldl Vec3.add (vec3 0 0 0)
+                |> Vec3.scale (1 / toFloat (List.length vs))
+
+        edgesWithMidPoints =
+            List.concatMap edges faces
+                |> List.filter (\( u, v ) -> u < v)
+                |> List.map (\( u, v ) -> ( ( u, v ), centroid [ u, v ] ))
+
+        m =
+            List.length edgesWithMidPoints
+
+        midPointIndex =
+            edgesWithMidPoints
+                |> List.indexedMap
+                    (\i ( ( u, v ), _ ) -> ( ( u, v ), i + n ))
+                |> List.concatMap
+                    (\( ( u, v ), i ) -> [ ( ( u, v ), i ), ( ( v, u ), i ) ])
+                |> Dict.fromList
+
+        vertices =
+            List.concat
+                [ verts
+                , List.map Tuple.second edgesWithMidPoints
+                , List.map centroid faces
+                ]
+
+        subFaces i f =
+            sectors f
+                |> List.map
+                    (\( u, v, w ) ->
+                        [ Dict.get ( u, v ) midPointIndex
+                        , Just v
+                        , Dict.get ( v, w ) midPointIndex
+                        , Just (n + m + i)
+                        ]
+                            |> List.filterMap identity
+                    )
+
+        facesOut =
+            faces |> List.indexedMap subFaces |> List.concat
+    in
+    { verts = vertices, faces = facesOut }
+
+
 sectorData : Array Vec3 -> List Int -> List { idx : Int, normal : Vec3 }
 sectorData allVertices face =
     let
@@ -79,17 +167,14 @@ triangulate corners =
             []
 
 
-makeMesh : { verts : List Vec3, faces : List (List Int) } -> Mesh.Mesh Vertex
+makeMesh : PreMesh -> Mesh.Mesh Vertex
 makeMesh { verts, faces } =
     let
         vertices =
             Array.fromList verts
 
-        sectors =
-            List.concatMap (\f -> sectorData vertices f) faces
-
         vertexNormal idx =
-            sectors
+            List.concatMap (\f -> sectorData vertices f) faces
                 |> List.filter (\e -> e.idx == idx)
                 |> List.map (\e -> e.normal)
                 |> List.foldl Vec3.add (vec3 0 0 0)
@@ -105,7 +190,7 @@ makeMesh { verts, faces } =
     Mesh.IndexedTriangles verticesWithNormals triangles
 
 
-cylinder : Float -> Int -> { verts : List Vec3, faces : List (List Int) }
+cylinder : Float -> Int -> PreMesh
 cylinder radius nrSegments =
     let
         n =
@@ -152,14 +237,56 @@ cylinder radius nrSegments =
     { verts = vertices, faces = faces }
 
 
+ball : Float -> PreMesh
+ball radius =
+    let
+        tmp =
+            { verts =
+                [ vec3 1 0 0
+                , vec3 0 1 0
+                , vec3 0 0 1
+                , vec3 -1 0 0
+                , vec3 0 -1 0
+                , vec3 0 0 -1
+                ]
+            , faces =
+                [ [ 0, 1, 2 ]
+                , [ 1, 0, 5 ]
+                , [ 2, 1, 3 ]
+                , [ 0, 2, 4 ]
+                , [ 3, 5, 4 ]
+                , [ 5, 3, 1 ]
+                , [ 4, 5, 0 ]
+                , [ 3, 4, 2 ]
+                ]
+            }
+                |> subdivide
+                |> subdivide
+                |> subdivide
+    in
+    { verts = List.map (Vec3.normalize >> Vec3.scale radius) tmp.verts
+    , faces = tmp.faces
+    }
+
+
 meshes : List (Mesh.Mesh Vertex)
 meshes =
-    [ cylinder 0.1 48 |> makeMesh ]
+    [ cylinder 0.1 48 |> makeMesh
+    , ball 0.25 |> makeMesh
+    ]
 
 
 stickMaterial : Material
 stickMaterial =
     { color = Color.hsl 0.3 0.9 0.7
+    , roughness = 0.5
+    , metallic = 0.1
+    }
+
+
+ballMaterial : Material
+ballMaterial =
+    { color = Color.hsl 0.0 0.9 0.5
     , roughness = 0.5
     , metallic = 0.1
     }
@@ -181,6 +308,11 @@ instances =
       , transform = Mat4.makeRotate (pi / 2) (vec3 0 1 0)
       , idxMesh = 0
       , idxInstance = 2
+      }
+    , { material = ballMaterial
+      , transform = Mat4.identity
+      , idxMesh = 1
+      , idxInstance = 0
       }
     ]
 
