@@ -176,138 +176,6 @@ subscriptions model =
 -- Geometry
 
 
-edges : List Int -> List ( Int, Int )
-edges face =
-    case face of
-        a :: rest ->
-            List.map2 Tuple.pair face (rest ++ [ a ])
-
-        _ ->
-            []
-
-
-sectors : List Int -> List ( Int, Int, Int )
-sectors face =
-    case face of
-        a :: b :: rest ->
-            List.map3 (\u v w -> ( u, v, w ))
-                face
-                (b :: rest ++ [ a ])
-                (rest ++ [ a, b ])
-
-        _ ->
-            []
-
-
-subdivide : PreMesh -> PreMesh
-subdivide { verts, faces } =
-    let
-        vertexArray =
-            Array.fromList verts
-
-        centroid vs =
-            List.map (\v -> Array.get v vertexArray) vs
-                |> List.filterMap identity
-                |> List.foldl Vec3.add (vec3 0 0 0)
-                |> Vec3.scale (1 / toFloat (List.length vs))
-
-        allEdges =
-            List.concatMap edges faces
-                |> List.filter (\( u, v ) -> u < v)
-
-        n =
-            List.length verts
-
-        m =
-            List.length allEdges
-
-        midPointIndex =
-            List.indexedMap (\i e -> ( e, i + n )) allEdges
-                |> List.concatMap
-                    (\( ( u, v ), i ) -> [ ( ( u, v ), i ), ( ( v, u ), i ) ])
-                |> Dict.fromList
-
-        vertices =
-            List.concat
-                [ verts
-                , List.map (\( u, v ) -> centroid [ u, v ]) allEdges
-                , List.map centroid faces
-                ]
-
-        makeSubFace i ( u, v, w ) =
-            [ Dict.get ( u, v ) midPointIndex
-            , Just v
-            , Dict.get ( v, w ) midPointIndex
-            , Just (n + m + i)
-            ]
-                |> List.filterMap identity
-
-        facesOut =
-            faces
-                |> List.indexedMap
-                    (\i f -> List.map (makeSubFace i) (sectors f))
-                |> List.concat
-    in
-    { verts = vertices, faces = facesOut }
-
-
-sectorData : Array Vec3 -> List Int -> List { idx : Int, normal : Vec3 }
-sectorData allVertices face =
-    let
-        getPos v =
-            Array.get v allVertices |> Maybe.withDefault (vec3 0 0 0)
-
-        verts =
-            List.map (\v -> { idx = v, pos = getPos v }) face
-
-        compute u v w =
-            { idx = v.idx
-            , normal = Vec3.cross (Vec3.sub w.pos v.pos) (Vec3.sub u.pos v.pos)
-            }
-    in
-    case verts of
-        a :: b :: rest ->
-            List.map3 compute verts (b :: rest ++ [ a ]) (rest ++ [ a, b ])
-
-        _ ->
-            []
-
-
-triangulate : List vertex -> List ( vertex, vertex, vertex )
-triangulate corners =
-    case corners of
-        u :: v :: w :: rest ->
-            ( w, u, v ) :: List.map2 (\r s -> ( u, r, s )) (w :: rest) rest
-
-        _ ->
-            []
-
-
-makeMesh : PreMesh -> Mesh.Mesh Vertex
-makeMesh { verts, faces } =
-    let
-        vertices =
-            Array.fromList verts
-
-        allSectorData =
-            List.concatMap (sectorData vertices) faces
-
-        vertexNormal idx =
-            List.filter (\e -> e.idx == idx) allSectorData
-                |> List.map .normal
-                |> List.foldl Vec3.add (vec3 0 0 0)
-
-        verticesWithNormals =
-            List.indexedMap
-                (\idx pos -> { position = pos, normal = vertexNormal idx })
-                verts
-
-        triangles =
-            List.concatMap triangulate faces
-    in
-    Mesh.IndexedTriangles verticesWithNormals triangles
-
-
 cylinder : Float -> Float -> Int -> PreMesh
 cylinder radius length nrSegments =
     let
@@ -383,3 +251,135 @@ ball radius =
     { verts = List.map (Vec3.normalize >> Vec3.scale radius) tmp.verts
     , faces = tmp.faces
     }
+
+
+subdivide : PreMesh -> PreMesh
+subdivide { verts, faces } =
+    let
+        vertexArray =
+            Array.fromList verts
+
+        centroid vs =
+            List.map (\v -> Array.get v vertexArray) vs
+                |> List.filterMap identity
+                |> List.foldl Vec3.add (vec3 0 0 0)
+                |> Vec3.scale (1 / toFloat (List.length vs))
+
+        allEdges =
+            List.concatMap edges faces
+                |> List.filter (\( u, v ) -> u < v)
+
+        n =
+            List.length verts
+
+        m =
+            List.length allEdges
+
+        midPointIndex =
+            List.indexedMap (\i e -> ( e, i + n )) allEdges
+                |> List.concatMap
+                    (\( ( u, v ), i ) -> [ ( ( u, v ), i ), ( ( v, u ), i ) ])
+                |> Dict.fromList
+
+        vertices =
+            List.concat
+                [ verts
+                , List.map (\( u, v ) -> centroid [ u, v ]) allEdges
+                , List.map centroid faces
+                ]
+
+        makeSubFace i ( u, v, w ) =
+            [ Dict.get ( u, v ) midPointIndex
+            , Just v
+            , Dict.get ( v, w ) midPointIndex
+            , Just (n + m + i)
+            ]
+                |> List.filterMap identity
+
+        facesOut =
+            faces
+                |> List.indexedMap
+                    (\i f -> List.map (makeSubFace i) (sectors f))
+                |> List.concat
+    in
+    { verts = vertices, faces = facesOut }
+
+
+edges : List Int -> List ( Int, Int )
+edges face =
+    case face of
+        a :: rest ->
+            List.map2 Tuple.pair face (rest ++ [ a ])
+
+        _ ->
+            []
+
+
+sectors : List Int -> List ( Int, Int, Int )
+sectors face =
+    case face of
+        a :: b :: rest ->
+            List.map3 (\u v w -> ( u, v, w ))
+                face
+                (b :: rest ++ [ a ])
+                (rest ++ [ a, b ])
+
+        _ ->
+            []
+
+
+makeMesh : PreMesh -> Mesh.Mesh Vertex
+makeMesh { verts, faces } =
+    let
+        vertices =
+            Array.fromList verts
+
+        allSectorData =
+            List.concatMap (sectorData vertices) faces
+
+        vertexNormal idx =
+            List.filter (\e -> e.idx == idx) allSectorData
+                |> List.map .normal
+                |> List.foldl Vec3.add (vec3 0 0 0)
+
+        verticesWithNormals =
+            List.indexedMap
+                (\idx pos -> { position = pos, normal = vertexNormal idx })
+                verts
+
+        triangles =
+            List.concatMap triangulate faces
+    in
+    Mesh.IndexedTriangles verticesWithNormals triangles
+
+
+sectorData : Array Vec3 -> List Int -> List { idx : Int, normal : Vec3 }
+sectorData allVertices face =
+    let
+        getPos v =
+            Array.get v allVertices |> Maybe.withDefault (vec3 0 0 0)
+
+        verts =
+            List.map (\v -> { idx = v, pos = getPos v }) face
+
+        compute u v w =
+            { idx = v.idx
+            , normal = Vec3.cross (Vec3.sub w.pos v.pos) (Vec3.sub u.pos v.pos)
+            }
+    in
+    case verts of
+        a :: b :: rest ->
+            List.map3 compute verts (b :: rest ++ [ a ]) (rest ++ [ a, b ])
+
+        _ ->
+            []
+
+
+triangulate : List vertex -> List ( vertex, vertex, vertex )
+triangulate corners =
+    case corners of
+        u :: v :: w :: rest ->
+            ( w, u, v ) :: List.map2 (\r s -> ( u, r, s )) (w :: rest) rest
+
+        _ ->
+            []
