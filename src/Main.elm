@@ -47,32 +47,50 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init _ =
     let
-        ( stickMeshes, stickInstances ) =
-            makeSticks 1
-                [ ( vec3 0 0 0, vec3 1 0 0 )
-                , ( vec3 0 1 0, vec3 1 1 0 )
-                , ( vec3 0 0 1, vec3 1 0 1 )
-                , ( vec3 0 1 1, vec3 1 1 1 )
-                , ( vec3 0 0 0, vec3 0 1 0 )
-                , ( vec3 1 0 0, vec3 1 1 0 )
-                , ( vec3 0 0 1, vec3 0 1 1 )
-                , ( vec3 1 0 1, vec3 1 1 1 )
-                , ( vec3 0 0 0, vec3 0 0 1 )
-                , ( vec3 1 0 0, vec3 1 0 1 )
-                , ( vec3 0 1 0, vec3 0 1 1 )
-                , ( vec3 1 1 0, vec3 1 1 1 )
-                ]
-
         ( ballMeshes, ballInstances ) =
             makeBalls 0
-                [ vec3 0 0 0
-                , vec3 1 0 0
-                , vec3 0 1 0
-                , vec3 1 1 0
-                , vec3 0 0 1
-                , vec3 1 0 1
-                , vec3 0 1 1
+                [ vec3 -1 -1 -1
+                , vec3 1 -1 -1
+                , vec3 -1 1 -1
+                , vec3 1 1 -1
+                , vec3 -1 -1 1
+                , vec3 1 -1 1
+                , vec3 -1 1 1
                 , vec3 1 1 1
+                , vec3 -2 0 0
+                , vec3 2 0 0
+                , vec3 0 -2 0
+                , vec3 0 2 0
+                , vec3 0 0 -2
+                , vec3 0 0 2
+                ]
+
+        ( stickMeshes, stickInstances ) =
+            makeSticks 1
+                [ ( vec3 -1 -1 -1, vec3 1 -1 -1 )
+                , ( vec3 -1 1 -1, vec3 1 1 -1 )
+                , ( vec3 -1 -1 1, vec3 1 -1 1 )
+                , ( vec3 -1 1 1, vec3 1 1 1 )
+                , ( vec3 -1 -1 -1, vec3 -1 1 -1 )
+                , ( vec3 1 -1 -1, vec3 1 1 -1 )
+                , ( vec3 -1 -1 1, vec3 -1 1 1 )
+                , ( vec3 1 -1 1, vec3 1 1 1 )
+                , ( vec3 -1 -1 -1, vec3 -1 -1 1 )
+                , ( vec3 1 -1 -1, vec3 1 -1 1 )
+                , ( vec3 -1 1 -1, vec3 -1 1 1 )
+                , ( vec3 1 1 -1, vec3 1 1 1 )
+                , ( vec3 -2 0 0, vec3 0 -2 0 )
+                , ( vec3 -2 0 0, vec3 0 2 0 )
+                , ( vec3 -2 0 0, vec3 0 0 -2 )
+                , ( vec3 -2 0 0, vec3 0 0 2 )
+                , ( vec3 2 0 0, vec3 0 -2 0 )
+                , ( vec3 2 0 0, vec3 0 2 0 )
+                , ( vec3 2 0 0, vec3 0 0 -2 )
+                , ( vec3 2 0 0, vec3 0 0 2 )
+                , ( vec3 0 -2 0, vec3 0 0 -2 )
+                , ( vec3 0 -2 0, vec3 0 0 2 )
+                , ( vec3 0 2 0, vec3 0 0 -2 )
+                , ( vec3 0 2 0, vec3 0 0 2 )
                 ]
 
         meshes =
