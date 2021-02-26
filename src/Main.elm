@@ -271,7 +271,7 @@ meshes =
 
 stickMaterial : Material
 stickMaterial =
-    { color = Color.hsl 0.17 0.9 0.7
+    { color = Color.hsl 0.13 0.9 0.7
     , roughness = 0.5
     , metallic = 0.1
     }
@@ -279,7 +279,7 @@ stickMaterial =
 
 ballMaterial : Material
 ballMaterial =
-    { color = Color.hsl 0.0 0.9 0.5
+    { color = Color.hsl 0.0 0.6 0.5
     , roughness = 0.5
     , metallic = 0.1
     }
@@ -326,7 +326,7 @@ instances =
       , idxMesh = 1
       , idxInstance = 0
       }
-    , { material = { ballMaterial | color = Color.hsl 0.33 0.9 0.5 }
+    , { material = { ballMaterial | color = Color.hsl 0.33 0.6 0.5 }
       , transform = Mat4.makeTranslate (vec3 0 0 1)
       , idxMesh = 1
       , idxInstance = 0
