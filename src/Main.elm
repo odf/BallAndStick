@@ -48,19 +48,40 @@ init : Flags -> ( Model, Cmd Msg )
 init _ =
     let
         ( stickMeshes, stickInstances ) =
-            makeSticks
+            makeSticks 1
                 [ ( vec3 0 0 0, vec3 1 0 0 )
-                , ( vec3 0 0 0, vec3 0 0 1 )
-                , ( vec3 0 0 1, vec3 0 1 1 )
+                , ( vec3 0 1 0, vec3 1 1 0 )
+                , ( vec3 0 0 1, vec3 1 0 1 )
                 , ( vec3 0 1 1, vec3 1 1 1 )
+                , ( vec3 0 0 0, vec3 0 1 0 )
+                , ( vec3 1 0 0, vec3 1 1 0 )
+                , ( vec3 0 0 1, vec3 0 1 1 )
+                , ( vec3 1 0 1, vec3 1 1 1 )
+                , ( vec3 0 0 0, vec3 0 0 1 )
+                , ( vec3 1 0 0, vec3 1 0 1 )
+                , ( vec3 0 1 0, vec3 0 1 1 )
+                , ( vec3 1 1 0, vec3 1 1 1 )
                 ]
-                1
+
+        ( ballMeshes, ballInstances ) =
+            makeBalls 0
+                [ vec3 0 0 0
+                , vec3 1 0 0
+                , vec3 0 1 0
+                , vec3 1 1 0
+                , vec3 0 0 1
+                , vec3 1 0 1
+                , vec3 0 1 1
+                , vec3 1 1 1
+                ]
 
         meshes =
-            (ball 0.25 |> makeMesh) :: List.map makeMesh stickMeshes
+            ballMeshes
+                ++ stickMeshes
+                |> List.map makeMesh
 
         instances =
-            balls ++ stickInstances
+            ballInstances ++ stickInstances
 
         model =
             View3d.init
@@ -71,23 +92,23 @@ init _ =
     ( model, Cmd.none )
 
 
-balls : List Instance
-balls =
-    [ { material = ballMaterial
-      , transform = Mat4.identity
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = { ballMaterial | color = Color.hsl 0.33 0.6 0.5 }
-      , transform = Mat4.makeTranslate (vec3 0 0 1)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    ]
+makeBalls : Int -> List Vec3 -> ( List PreMesh, List Instance )
+makeBalls offset coordinates =
+    ( [ ball 0.25 ]
+    , List.map
+        (\pos ->
+            { material = ballMaterial
+            , transform = Mat4.makeTranslate pos
+            , idxMesh = offset
+            , idxInstance = 0
+            }
+        )
+        coordinates
+    )
 
 
-makeSticks : List ( Vec3, Vec3 ) -> Int -> ( List PreMesh, List Instance )
-makeSticks coordinates offset =
+makeSticks : Int -> List ( Vec3, Vec3 ) -> ( List PreMesh, List Instance )
+makeSticks offset coordinates =
     let
         params =
             List.map (\( u, v ) -> stickParameters u v) coordinates
