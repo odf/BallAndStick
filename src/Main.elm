@@ -185,14 +185,11 @@ makeMesh { verts, faces } =
     Mesh.IndexedTriangles verticesWithNormals triangles
 
 
-cylinder : Float -> Int -> PreMesh
-cylinder radius nrSegments =
+cylinder : Float -> Float -> Int -> PreMesh
+cylinder radius length nrSegments =
     let
         n =
             nrSegments
-
-        r =
-            radius
 
         a =
             2 * pi / toFloat n
@@ -200,10 +197,11 @@ cylinder radius nrSegments =
         bottom =
             List.range 0 (n - 1)
                 |> List.map toFloat
-                |> List.map (\i -> ( r * cos (a * i), r * sin (a * i), 0 ))
+                |> List.map
+                    (\i -> ( radius * cos (a * i), radius * sin (a * i), 0 ))
 
         top =
-            List.map (\( x, y, z ) -> ( x, y, 1 - z )) bottom
+            List.map (\( x, y, z ) -> ( x, y, length - z )) bottom
 
         bottomInset =
             List.map (\( x, y, z ) -> ( 0.9 * x, 0.9 * y, z )) bottom
@@ -266,7 +264,7 @@ ball radius =
 
 meshes : List (Mesh.Mesh Vertex)
 meshes =
-    [ cylinder 0.1 48 |> makeMesh
+    [ cylinder 0.1 1.0 48 |> makeMesh
     , ball 0.25 |> makeMesh
     ]
 
@@ -295,14 +293,33 @@ instances =
       , idxInstance = 0
       }
     , { material = stickMaterial
-      , transform = Mat4.makeRotate (pi / 2) (vec3 1 0 0)
+      , transform = Mat4.makeTranslate (vec3 1 0 0)
       , idxMesh = 0
-      , idxInstance = 1
+      , idxInstance = 0
+      }
+    , { material = stickMaterial
+      , transform = Mat4.makeRotate (-pi / 2) (vec3 1 0 0)
+      , idxMesh = 0
+      , idxInstance = 0
+      }
+    , { material = stickMaterial
+      , transform =
+            Mat4.makeTranslate (vec3 1 0 0)
+                |> Mat4.rotate (-pi / 2) (vec3 1 0 0)
+      , idxMesh = 0
+      , idxInstance = 0
       }
     , { material = stickMaterial
       , transform = Mat4.makeRotate (pi / 2) (vec3 0 1 0)
       , idxMesh = 0
-      , idxInstance = 2
+      , idxInstance = 0
+      }
+    , { material = stickMaterial
+      , transform =
+            Mat4.makeTranslate (vec3 0 1 0)
+                |> Mat4.rotate (pi / 2) (vec3 0 1 0)
+      , idxMesh = 0
+      , idxInstance = 0
       }
     , { material = ballMaterial
       , transform = Mat4.identity
@@ -312,7 +329,7 @@ instances =
     , { material = { ballMaterial | color = Color.hsl 0.33 0.9 0.5 }
       , transform = Mat4.makeTranslate (vec3 0 0 1)
       , idxMesh = 1
-      , idxInstance = 1
+      , idxInstance = 0
       }
     ]
 
