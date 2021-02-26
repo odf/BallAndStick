@@ -13,16 +13,6 @@ import View3d.Mesh as Mesh
 import View3d.RendererCommon exposing (..)
 
 
-main : Program Flags Model Msg
-main =
-    Browser.element
-        { init = init
-        , view = view
-        , update = update
-        , subscriptions = subscriptions
-        }
-
-
 type alias Flags =
     {}
 
@@ -33,6 +23,117 @@ type alias Model =
 
 type alias Msg =
     View3d.Msg
+
+
+type alias PreMesh =
+    { verts : List Vec3, faces : List (List Int) }
+
+
+main : Program Flags Model Msg
+main =
+    Browser.element
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        }
+
+
+
+-- Init
+
+
+init : Flags -> ( Model, Cmd Msg )
+init _ =
+    let
+        model =
+            View3d.init
+                |> View3d.setSize { width = 768, height = 768 }
+                |> View3d.setScene (Just meshes) instances
+                |> View3d.encompass
+    in
+    ( model, Cmd.none )
+
+
+meshes : List (Mesh.Mesh Vertex)
+meshes =
+    [ cylinder 0.1 1.0 48 |> makeMesh
+    , ball 0.25 |> makeMesh
+    ]
+
+
+instances : List Instance
+instances =
+    [ { material = stickMaterial
+      , transform = Mat4.identity
+      , idxMesh = 0
+      , idxInstance = 0
+      }
+    , { material = stickMaterial
+      , transform = Mat4.makeTranslate (vec3 1 0 0)
+      , idxMesh = 0
+      , idxInstance = 0
+      }
+    , { material = stickMaterial
+      , transform = Mat4.makeRotate (-pi / 2) (vec3 1 0 0)
+      , idxMesh = 0
+      , idxInstance = 0
+      }
+    , { material = stickMaterial
+      , transform =
+            Mat4.makeTranslate (vec3 1 0 0)
+                |> Mat4.rotate (-pi / 2) (vec3 1 0 0)
+      , idxMesh = 0
+      , idxInstance = 0
+      }
+    , { material = stickMaterial
+      , transform = Mat4.makeRotate (pi / 2) (vec3 0 1 0)
+      , idxMesh = 0
+      , idxInstance = 0
+      }
+    , { material = stickMaterial
+      , transform =
+            Mat4.makeTranslate (vec3 0 1 0)
+                |> Mat4.rotate (pi / 2) (vec3 0 1 0)
+      , idxMesh = 0
+      , idxInstance = 0
+      }
+    , { material = ballMaterial
+      , transform = Mat4.identity
+      , idxMesh = 1
+      , idxInstance = 0
+      }
+    , { material = { ballMaterial | color = Color.hsl 0.33 0.6 0.5 }
+      , transform = Mat4.makeTranslate (vec3 0 0 1)
+      , idxMesh = 1
+      , idxInstance = 0
+      }
+    ]
+
+
+stickMaterial : Material
+stickMaterial =
+    { color = Color.hsl 0.13 0.9 0.7
+    , roughness = 0.5
+    , metallic = 0.1
+    }
+
+
+ballMaterial : Material
+ballMaterial =
+    { color = Color.hsl 0.0 0.6 0.5
+    , roughness = 0.5
+    , metallic = 0.1
+    }
+
+
+
+-- View
+
+
+view : Model -> Html.Html Msg
+view model =
+    Html.div [] [ View3d.view identity model options Color.black ]
 
 
 options : View3d.RendererCommon.Options
@@ -49,8 +150,30 @@ options =
     }
 
 
-type alias PreMesh =
-    { verts : List Vec3, faces : List (List Int) }
+
+-- Update
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    let
+        ( newModel, _ ) =
+            View3d.update msg model
+    in
+    ( newModel, Cmd.none )
+
+
+
+-- Subscriptions
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    View3d.subscriptions identity model
+
+
+
+-- Geometry
 
 
 edges : List Int -> List ( Int, Int )
@@ -260,106 +383,3 @@ ball radius =
     { verts = List.map (Vec3.normalize >> Vec3.scale radius) tmp.verts
     , faces = tmp.faces
     }
-
-
-meshes : List (Mesh.Mesh Vertex)
-meshes =
-    [ cylinder 0.1 1.0 48 |> makeMesh
-    , ball 0.25 |> makeMesh
-    ]
-
-
-stickMaterial : Material
-stickMaterial =
-    { color = Color.hsl 0.13 0.9 0.7
-    , roughness = 0.5
-    , metallic = 0.1
-    }
-
-
-ballMaterial : Material
-ballMaterial =
-    { color = Color.hsl 0.0 0.6 0.5
-    , roughness = 0.5
-    , metallic = 0.1
-    }
-
-
-instances : List Instance
-instances =
-    [ { material = stickMaterial
-      , transform = Mat4.identity
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform = Mat4.makeTranslate (vec3 1 0 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform = Mat4.makeRotate (-pi / 2) (vec3 1 0 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform =
-            Mat4.makeTranslate (vec3 1 0 0)
-                |> Mat4.rotate (-pi / 2) (vec3 1 0 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform = Mat4.makeRotate (pi / 2) (vec3 0 1 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform =
-            Mat4.makeTranslate (vec3 0 1 0)
-                |> Mat4.rotate (pi / 2) (vec3 0 1 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = ballMaterial
-      , transform = Mat4.identity
-      , idxMesh = 1
-      , idxInstance = 0
-      }
-    , { material = { ballMaterial | color = Color.hsl 0.33 0.6 0.5 }
-      , transform = Mat4.makeTranslate (vec3 0 0 1)
-      , idxMesh = 1
-      , idxInstance = 0
-      }
-    ]
-
-
-init : Flags -> ( Model, Cmd Msg )
-init _ =
-    let
-        model =
-            View3d.init
-                |> View3d.setSize { width = 768, height = 768 }
-                |> View3d.setScene (Just meshes) instances
-                |> View3d.encompass
-    in
-    ( model, Cmd.none )
-
-
-view : Model -> Html.Html Msg
-view model =
-    Html.div [] [ View3d.view identity model options Color.black ]
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    let
-        ( newModel, _ ) =
-            View3d.update msg model
-    in
-    ( newModel, Cmd.none )
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    View3d.subscriptions identity model
