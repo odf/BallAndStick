@@ -166,10 +166,12 @@ makeMesh { verts, faces } =
         vertices =
             Array.fromList verts
 
+        allSectorData =
+            List.concatMap (sectorData vertices) faces
+
         vertexNormal idx =
-            List.concatMap (\f -> sectorData vertices f) faces
-                |> List.filter (\e -> e.idx == idx)
-                |> List.map (\e -> e.normal)
+            List.filter (\e -> e.idx == idx) allSectorData
+                |> List.map .normal
                 |> List.foldl Vec3.add (vec3 0 0 0)
 
         verticesWithNormals =
