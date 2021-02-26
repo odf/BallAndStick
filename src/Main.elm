@@ -6,8 +6,9 @@ import Color
 import DelaunayTriangulation2d exposing (faces)
 import Dict
 import Html
-import Math.Matrix4 as Mat4
+import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
+import Point2d exposing (origin)
 import View3d.Main as View3d
 import View3d.Mesh as Mesh
 import View3d.RendererCommon exposing (..)
@@ -46,6 +47,21 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init _ =
     let
+        ( stickMeshes, stickInstances ) =
+            makeSticks
+                [ ( vec3 0 0 0, vec3 1 0 0 )
+                , ( vec3 0 0 0, vec3 0 0 1 )
+                , ( vec3 0 0 1, vec3 0 1 1 )
+                , ( vec3 0 1 1, vec3 1 1 1 )
+                ]
+                1
+
+        meshes =
+            (ball 0.25 |> makeMesh) :: List.map makeMesh stickMeshes
+
+        instances =
+            balls ++ stickInstances
+
         model =
             View3d.init
                 |> View3d.setSize { width = 768, height = 768 }
@@ -55,60 +71,67 @@ init _ =
     ( model, Cmd.none )
 
 
-meshes : List (Mesh.Mesh Vertex)
-meshes =
-    [ cylinder 0.1 1.0 48 |> makeMesh
-    , ball 0.25 |> makeMesh
-    ]
-
-
-instances : List Instance
-instances =
-    [ { material = stickMaterial
+balls : List Instance
+balls =
+    [ { material = ballMaterial
       , transform = Mat4.identity
       , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform = Mat4.makeTranslate (vec3 1 0 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform = Mat4.makeRotate (-pi / 2) (vec3 1 0 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform =
-            Mat4.makeTranslate (vec3 1 0 0)
-                |> Mat4.rotate (-pi / 2) (vec3 1 0 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform = Mat4.makeRotate (pi / 2) (vec3 0 1 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = stickMaterial
-      , transform =
-            Mat4.makeTranslate (vec3 0 1 0)
-                |> Mat4.rotate (pi / 2) (vec3 0 1 0)
-      , idxMesh = 0
-      , idxInstance = 0
-      }
-    , { material = ballMaterial
-      , transform = Mat4.identity
-      , idxMesh = 1
       , idxInstance = 0
       }
     , { material = { ballMaterial | color = Color.hsl 0.33 0.6 0.5 }
       , transform = Mat4.makeTranslate (vec3 0 0 1)
-      , idxMesh = 1
+      , idxMesh = 0
       , idxInstance = 0
       }
     ]
+
+
+makeSticks : List ( Vec3, Vec3 ) -> Int -> ( List PreMesh, List Instance )
+makeSticks coordinates offset =
+    let
+        params =
+            List.map (\( u, v ) -> stickParameters u v) coordinates
+
+        lengthKey x =
+            round (x * 100)
+
+        makeStick k =
+            cylinder 0.1 (toFloat k / 100) 48
+
+        sticks =
+            List.map .length params
+                |> List.map lengthKey
+                |> List.foldl
+                    (\k d ->
+                        if Dict.member k d then
+                            d
+
+                        else
+                            Dict.insert k (makeStick k) d
+                    )
+                    Dict.empty
+
+        stickIndex =
+            Dict.keys sticks
+                |> List.indexedMap (\i k -> ( k, i ))
+                |> Dict.fromList
+
+        makeInstance { origin, length, rotation } =
+            let
+                idxMesh =
+                    Dict.get (lengthKey length) stickIndex
+                        |> Maybe.withDefault -1
+            in
+            { material = stickMaterial
+            , transform = Mat4.mul (Mat4.makeTranslate origin) rotation
+            , idxMesh = idxMesh + offset
+            , idxInstance = 0
+            }
+    in
+    ( Dict.values sticks
+    , List.map makeInstance params
+        |> List.filter (\inst -> inst.idxMesh >= 0)
+    )
 
 
 stickMaterial : Material
@@ -174,6 +197,40 @@ subscriptions model =
 
 
 -- Geometry
+
+
+stickParameters :
+    Vec3
+    -> Vec3
+    -> { origin : Vec3, length : Float, rotation : Mat4 }
+stickParameters from to =
+    let
+        w =
+            Vec3.direction to from
+
+        ex =
+            vec3 1 0 0
+
+        ey =
+            vec3 0 1 0
+
+        t =
+            if abs (Vec3.dot w ex) < abs (Vec3.dot w ey) then
+                ex
+
+            else
+                ey
+
+        u =
+            Vec3.normalize (Vec3.cross w t)
+
+        v =
+            Vec3.normalize (Vec3.cross w u)
+    in
+    { origin = from
+    , length = Vec3.distance from to
+    , rotation = Mat4.makeBasis u v w
+    }
 
 
 cylinder : Float -> Float -> Int -> PreMesh
@@ -305,29 +362,6 @@ subdivide { verts, faces } =
     { verts = vertices, faces = facesOut }
 
 
-edges : List Int -> List ( Int, Int )
-edges face =
-    case face of
-        a :: rest ->
-            List.map2 Tuple.pair face (rest ++ [ a ])
-
-        _ ->
-            []
-
-
-sectors : List Int -> List ( Int, Int, Int )
-sectors face =
-    case face of
-        a :: b :: rest ->
-            List.map3 (\u v w -> ( u, v, w ))
-                face
-                (b :: rest ++ [ a ])
-                (rest ++ [ a, b ])
-
-        _ ->
-            []
-
-
 makeMesh : PreMesh -> Mesh.Mesh Vertex
 makeMesh { verts, faces } =
     let
@@ -351,6 +385,29 @@ makeMesh { verts, faces } =
             List.concatMap triangulate faces
     in
     Mesh.IndexedTriangles verticesWithNormals triangles
+
+
+edges : List Int -> List ( Int, Int )
+edges face =
+    case face of
+        a :: rest ->
+            List.map2 Tuple.pair face (rest ++ [ a ])
+
+        _ ->
+            []
+
+
+sectors : List Int -> List ( Int, Int, Int )
+sectors face =
+    case face of
+        a :: b :: rest ->
+            List.map3 (\u v w -> ( u, v, w ))
+                face
+                (b :: rest ++ [ a ])
+                (rest ++ [ a, b ])
+
+        _ ->
+            []
 
 
 sectorData : Array Vec3 -> List Int -> List { idx : Int, normal : Vec3 }
