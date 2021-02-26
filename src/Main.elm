@@ -79,33 +79,27 @@ sectors face =
 subdivide : PreMesh -> PreMesh
 subdivide { verts, faces } =
     let
-        n =
-            List.length verts
-
         vertexArray =
             Array.fromList verts
 
-        getPos v =
-            Array.get v vertexArray |> Maybe.withDefault (vec3 0 0 0)
-
         centroid vs =
-            vs
-                |> List.map getPos
+            List.map (\v -> Array.get v vertexArray) vs
+                |> List.filterMap identity
                 |> List.foldl Vec3.add (vec3 0 0 0)
                 |> Vec3.scale (1 / toFloat (List.length vs))
 
-        edgesWithMidPoints =
+        allEdges =
             List.concatMap edges faces
                 |> List.filter (\( u, v ) -> u < v)
-                |> List.map (\( u, v ) -> ( ( u, v ), centroid [ u, v ] ))
+
+        n =
+            List.length verts
 
         m =
-            List.length edgesWithMidPoints
+            List.length allEdges
 
         midPointIndex =
-            edgesWithMidPoints
-                |> List.indexedMap
-                    (\i ( ( u, v ), _ ) -> ( ( u, v ), i + n ))
+            List.indexedMap (\i e -> ( e, i + n )) allEdges
                 |> List.concatMap
                     (\( ( u, v ), i ) -> [ ( ( u, v ), i ), ( ( v, u ), i ) ])
                 |> Dict.fromList
@@ -113,24 +107,23 @@ subdivide { verts, faces } =
         vertices =
             List.concat
                 [ verts
-                , List.map Tuple.second edgesWithMidPoints
+                , List.map (\( u, v ) -> centroid [ u, v ]) allEdges
                 , List.map centroid faces
                 ]
 
-        subFaces i f =
-            sectors f
-                |> List.map
-                    (\( u, v, w ) ->
-                        [ Dict.get ( u, v ) midPointIndex
-                        , Just v
-                        , Dict.get ( v, w ) midPointIndex
-                        , Just (n + m + i)
-                        ]
-                            |> List.filterMap identity
-                    )
+        makeSubFace i ( u, v, w ) =
+            [ Dict.get ( u, v ) midPointIndex
+            , Just v
+            , Dict.get ( v, w ) midPointIndex
+            , Just (n + m + i)
+            ]
+                |> List.filterMap identity
 
         facesOut =
-            faces |> List.indexedMap subFaces |> List.concat
+            faces
+                |> List.indexedMap
+                    (\i f -> List.map (makeSubFace i) (sectors f))
+                |> List.concat
     in
     { verts = vertices, faces = facesOut }
 
