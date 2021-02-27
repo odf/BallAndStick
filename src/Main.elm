@@ -366,23 +366,39 @@ cylinder radius length nrSegments =
         a =
             2 * pi / toFloat n
 
+        d =
+            0.1 * radius
+
         bottom =
             List.range 0 (n - 1)
                 |> List.map toFloat
                 |> List.map
                     (\i -> ( radius * cos (a * i), radius * sin (a * i), 0 ))
 
+        bottomCapInset =
+            List.map (\( x, y, z ) -> ( 0.9 * x, 0.9 * y, z )) bottom
+
+        bottomShaftInset =
+            List.map (\( x, y, z ) -> ( x, y, z + d )) bottom
+
         top =
             List.map (\( x, y, z ) -> ( x, y, length - z )) bottom
 
-        bottomInset =
-            List.map (\( x, y, z ) -> ( 0.9 * x, 0.9 * y, z )) bottom
+        topCapInset =
+            List.map (\( x, y, z ) -> ( x, y, length - z )) bottomCapInset
 
-        topInset =
-            List.map (\( x, y, z ) -> ( 0.9 * x, 0.9 * y, z )) top
+        topShaftInset =
+            List.map (\( x, y, z ) -> ( x, y, length - z )) bottomShaftInset
 
         vertices =
-            List.concat [ bottomInset, bottom, top, topInset ]
+            List.concat
+                [ bottomCapInset
+                , bottom
+                , bottomShaftInset
+                , topShaftInset
+                , top
+                , topCapInset
+                ]
                 |> List.map (\( x, y, z ) -> vec3 x y z)
 
         ring s t =
@@ -396,7 +412,9 @@ cylinder radius length nrSegments =
                 , ring 0 n
                 , ring n (2 * n)
                 , ring (2 * n) (3 * n)
-                , [ List.range (3 * n) (4 * n - 1) ]
+                , ring (3 * n) (4 * n)
+                , ring (4 * n) (5 * n)
+                , [ List.range (5 * n) (6 * n - 1) ]
                 ]
     in
     { verts = vertices, faces = faces }
