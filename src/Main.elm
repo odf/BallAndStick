@@ -54,17 +54,30 @@ init _ =
             List.map listToPoint data.points
                 |> makeBalls 0 ballMaterial 0.125
 
+        ( cornerMeshes, cornerInstances ) =
+            List.map listToPoint unitCell.points
+                |> makeBalls 1 cellMaterial 0.01
+
         ( stickMeshes, stickInstances ) =
             List.map listToEdge data.edges
-                |> makeSticks 1 stickMaterial 0.05
+                |> makeSticks 2 stickMaterial 0.05
+
+        ( edgeMeshes, edgeInstances ) =
+            List.map listToEdge unitCell.edges
+                |> makeSticks (2 + List.length stickMeshes) cellMaterial 0.01
 
         meshes =
             ballMeshes
+                ++ cornerMeshes
                 ++ stickMeshes
+                ++ edgeMeshes
                 |> List.map makeMesh
 
         instances =
-            ballInstances ++ stickInstances
+            ballInstances
+                ++ cornerInstances
+                ++ stickInstances
+                ++ edgeInstances
 
         model =
             View3d.init
@@ -164,6 +177,14 @@ ballMaterial =
     }
 
 
+cellMaterial : Material
+cellMaterial =
+    { color = Color.hsl 0.67 0.5 0.5
+    , roughness = 0.5
+    , metallic = 0.1
+    }
+
+
 listToPoint : List Float -> Vec3
 listToPoint xs =
     case xs of
@@ -188,49 +209,31 @@ listToEdge xs =
 -- Data
 
 
-demo : { points : List (List Float), edges : List (List Float) }
-demo =
+unitCell : { points : List (List number), edges : List (List number) }
+unitCell =
     { points =
-        [ [ -0.5, -0.5, -0.5 ]
-        , [ 0.5, -0.5, -0.5 ]
-        , [ -0.5, 0.5, -0.5 ]
-        , [ 0.5, 0.5, -0.5 ]
-        , [ -0.5, -0.5, 0.5 ]
-        , [ 0.5, -0.5, 0.5 ]
-        , [ -0.5, 0.5, 0.5 ]
-        , [ 0.5, 0.5, 0.5 ]
-        , [ -1, 0, 0 ]
+        [ [ 0, 0, 0 ]
         , [ 1, 0, 0 ]
-        , [ 0, -1, 0 ]
         , [ 0, 1, 0 ]
-        , [ 0, 0, -1 ]
+        , [ 1, 1, 0 ]
         , [ 0, 0, 1 ]
+        , [ 1, 0, 1 ]
+        , [ 0, 1, 1 ]
+        , [ 1, 1, 1 ]
         ]
     , edges =
-        [ [ -0.5, -0.5, -0.5, 0.5, -0.5, -0.5 ]
-        , [ -0.5, 0.5, -0.5, 0.5, 0.5, -0.5 ]
-        , [ -0.5, -0.5, 0.5, 0.5, -0.5, 0.5 ]
-        , [ -0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ]
-        , [ -0.5, -0.5, -0.5, -0.5, 0.5, -0.5 ]
-        , [ 0.5, -0.5, -0.5, 0.5, 0.5, -0.5 ]
-        , [ -0.5, -0.5, 0.5, -0.5, 0.5, 0.5 ]
-        , [ 0.5, -0.5, 0.5, 0.5, 0.5, 0.5 ]
-        , [ -0.5, -0.5, -0.5, -0.5, -0.5, 0.5 ]
-        , [ 0.5, -0.5, -0.5, 0.5, -0.5, 0.5 ]
-        , [ -0.5, 0.5, -0.5, -0.5, 0.5, 0.5 ]
-        , [ 0.5, 0.5, -0.5, 0.5, 0.5, 0.5 ]
-        , [ -1, 0, 0, 0, -1, 0 ]
-        , [ -1, 0, 0, 0, 1, 0 ]
-        , [ -1, 0, 0, 0, 0, -1 ]
-        , [ -1, 0, 0, 0, 0, 1 ]
-        , [ 1, 0, 0, 0, -1, 0 ]
-        , [ 1, 0, 0, 0, 1, 0 ]
-        , [ 1, 0, 0, 0, 0, -1 ]
-        , [ 1, 0, 0, 0, 0, 1 ]
-        , [ 0, -1, 0, 0, 0, -1 ]
-        , [ 0, -1, 0, 0, 0, 1 ]
-        , [ 0, 1, 0, 0, 0, -1 ]
-        , [ 0, 1, 0, 0, 0, 1 ]
+        [ [ 0, 0, 0, 1, 0, 0 ]
+        , [ 0, 1, 0, 1, 1, 0 ]
+        , [ 0, 0, 1, 1, 0, 1 ]
+        , [ 0, 1, 1, 1, 1, 1 ]
+        , [ 0, 0, 0, 0, 1, 0 ]
+        , [ 1, 0, 0, 1, 1, 0 ]
+        , [ 0, 0, 1, 0, 1, 1 ]
+        , [ 1, 0, 1, 1, 1, 1 ]
+        , [ 0, 0, 0, 0, 0, 1 ]
+        , [ 1, 0, 0, 1, 0, 1 ]
+        , [ 0, 1, 0, 0, 1, 1 ]
+        , [ 1, 1, 0, 1, 1, 1 ]
         ]
     }
 
