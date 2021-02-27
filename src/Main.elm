@@ -48,50 +48,12 @@ init : Flags -> ( Model, Cmd Msg )
 init _ =
     let
         ( ballMeshes, ballInstances ) =
-            makeBalls 0
-                [ vec3 -1 -1 -1
-                , vec3 1 -1 -1
-                , vec3 -1 1 -1
-                , vec3 1 1 -1
-                , vec3 -1 -1 1
-                , vec3 1 -1 1
-                , vec3 -1 1 1
-                , vec3 1 1 1
-                , vec3 -2 0 0
-                , vec3 2 0 0
-                , vec3 0 -2 0
-                , vec3 0 2 0
-                , vec3 0 0 -2
-                , vec3 0 0 2
-                ]
+            List.map listToPoint demo.points
+                |> makeBalls 0 ballMaterial 0.125
 
         ( stickMeshes, stickInstances ) =
-            makeSticks 1
-                [ ( vec3 -1 -1 -1, vec3 1 -1 -1 )
-                , ( vec3 -1 1 -1, vec3 1 1 -1 )
-                , ( vec3 -1 -1 1, vec3 1 -1 1 )
-                , ( vec3 -1 1 1, vec3 1 1 1 )
-                , ( vec3 -1 -1 -1, vec3 -1 1 -1 )
-                , ( vec3 1 -1 -1, vec3 1 1 -1 )
-                , ( vec3 -1 -1 1, vec3 -1 1 1 )
-                , ( vec3 1 -1 1, vec3 1 1 1 )
-                , ( vec3 -1 -1 -1, vec3 -1 -1 1 )
-                , ( vec3 1 -1 -1, vec3 1 -1 1 )
-                , ( vec3 -1 1 -1, vec3 -1 1 1 )
-                , ( vec3 1 1 -1, vec3 1 1 1 )
-                , ( vec3 -2 0 0, vec3 0 -2 0 )
-                , ( vec3 -2 0 0, vec3 0 2 0 )
-                , ( vec3 -2 0 0, vec3 0 0 -2 )
-                , ( vec3 -2 0 0, vec3 0 0 2 )
-                , ( vec3 2 0 0, vec3 0 -2 0 )
-                , ( vec3 2 0 0, vec3 0 2 0 )
-                , ( vec3 2 0 0, vec3 0 0 -2 )
-                , ( vec3 2 0 0, vec3 0 0 2 )
-                , ( vec3 0 -2 0, vec3 0 0 -2 )
-                , ( vec3 0 -2 0, vec3 0 0 2 )
-                , ( vec3 0 2 0, vec3 0 0 -2 )
-                , ( vec3 0 2 0, vec3 0 0 2 )
-                ]
+            List.map listToEdge demo.edges
+                |> makeSticks 1 stickMaterial 0.05
 
         meshes =
             ballMeshes
@@ -110,12 +72,17 @@ init _ =
     ( model, Cmd.none )
 
 
-makeBalls : Int -> List Vec3 -> ( List PreMesh, List Instance )
-makeBalls offset coordinates =
-    ( [ ball 0.25 ]
+makeBalls :
+    Int
+    -> Material
+    -> Float
+    -> List Vec3
+    -> ( List PreMesh, List Instance )
+makeBalls offset material radius coordinates =
+    ( [ ball radius ]
     , List.map
         (\pos ->
-            { material = ballMaterial
+            { material = material
             , transform = Mat4.makeTranslate pos
             , idxMesh = offset
             , idxInstance = 0
@@ -125,8 +92,13 @@ makeBalls offset coordinates =
     )
 
 
-makeSticks : Int -> List ( Vec3, Vec3 ) -> ( List PreMesh, List Instance )
-makeSticks offset coordinates =
+makeSticks :
+    Int
+    -> Material
+    -> Float
+    -> List ( Vec3, Vec3 )
+    -> ( List PreMesh, List Instance )
+makeSticks offset material radius coordinates =
     let
         params =
             List.map (\( u, v ) -> stickParameters u v) coordinates
@@ -135,7 +107,7 @@ makeSticks offset coordinates =
             round (x * 100)
 
         makeStick k =
-            cylinder 0.1 (toFloat k / 100) 48
+            cylinder radius (toFloat k / 100) 48
 
         sticks =
             List.map .length params
@@ -161,7 +133,7 @@ makeSticks offset coordinates =
                     Dict.get (lengthKey length) stickIndex
                         |> Maybe.withDefault -1
             in
-            { material = stickMaterial
+            { material = material
             , transform = Mat4.mul (Mat4.makeTranslate origin) rotation
             , idxMesh = idxMesh + offset
             , idxInstance = 0
@@ -186,6 +158,77 @@ ballMaterial =
     { color = Color.hsl 0.0 0.6 0.5
     , roughness = 0.5
     , metallic = 0.1
+    }
+
+
+listToPoint : List Float -> Vec3
+listToPoint xs =
+    case xs of
+        x :: y :: z :: _ ->
+            vec3 x y z
+
+        _ ->
+            vec3 0 0 0
+
+
+listToEdge : List Float -> ( Vec3, Vec3 )
+listToEdge xs =
+    case xs of
+        a :: b :: c :: rest ->
+            ( vec3 a b c, listToPoint rest )
+
+        _ ->
+            ( vec3 0 0 0, vec3 0 0 0 )
+
+
+
+-- Data
+
+
+demo : { points : List (List Float), edges : List (List Float) }
+demo =
+    { points =
+        [ [ -0.5, -0.5, -0.5 ]
+        , [ 0.5, -0.5, -0.5 ]
+        , [ -0.5, 0.5, -0.5 ]
+        , [ 0.5, 0.5, -0.5 ]
+        , [ -0.5, -0.5, 0.5 ]
+        , [ 0.5, -0.5, 0.5 ]
+        , [ -0.5, 0.5, 0.5 ]
+        , [ 0.5, 0.5, 0.5 ]
+        , [ -1, 0, 0 ]
+        , [ 1, 0, 0 ]
+        , [ 0, -1, 0 ]
+        , [ 0, 1, 0 ]
+        , [ 0, 0, -1 ]
+        , [ 0, 0, 1 ]
+        ]
+    , edges =
+        [ [ -0.5, -0.5, -0.5, 0.5, -0.5, -0.5 ]
+        , [ -0.5, 0.5, -0.5, 0.5, 0.5, -0.5 ]
+        , [ -0.5, -0.5, 0.5, 0.5, -0.5, 0.5 ]
+        , [ -0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ]
+        , [ -0.5, -0.5, -0.5, -0.5, 0.5, -0.5 ]
+        , [ 0.5, -0.5, -0.5, 0.5, 0.5, -0.5 ]
+        , [ -0.5, -0.5, 0.5, -0.5, 0.5, 0.5 ]
+        , [ 0.5, -0.5, 0.5, 0.5, 0.5, 0.5 ]
+        , [ -0.5, -0.5, -0.5, -0.5, -0.5, 0.5 ]
+        , [ 0.5, -0.5, -0.5, 0.5, -0.5, 0.5 ]
+        , [ -0.5, 0.5, -0.5, -0.5, 0.5, 0.5 ]
+        , [ 0.5, 0.5, -0.5, 0.5, 0.5, 0.5 ]
+        , [ -1, 0, 0, 0, -1, 0 ]
+        , [ -1, 0, 0, 0, 1, 0 ]
+        , [ -1, 0, 0, 0, 0, -1 ]
+        , [ -1, 0, 0, 0, 0, 1 ]
+        , [ 1, 0, 0, 0, -1, 0 ]
+        , [ 1, 0, 0, 0, 1, 0 ]
+        , [ 1, 0, 0, 0, 0, -1 ]
+        , [ 1, 0, 0, 0, 0, 1 ]
+        , [ 0, -1, 0, 0, 0, -1 ]
+        , [ 0, -1, 0, 0, 0, 1 ]
+        , [ 0, 1, 0, 0, 0, -1 ]
+        , [ 0, 1, 0, 0, 0, 1 ]
+        ]
     }
 
 
