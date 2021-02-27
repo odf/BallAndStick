@@ -370,7 +370,7 @@ cylinder radius length nrSegments =
             2 * pi / toFloat n
 
         d =
-            0.1 * radius
+            0.1
 
         bottom =
             List.range 0 (n - 1)
@@ -379,16 +379,27 @@ cylinder radius length nrSegments =
                     (\i -> ( radius * cos (a * i), radius * sin (a * i), 0 ))
 
         bottomCapInset =
-            List.map (\( x, y, z ) -> ( 0.9 * x, 0.9 * y, z )) bottom
+            List.map (\( x, y, z ) -> ( (1 - d) * x, (1 - d) * y, z )) bottom
+
+        bottomCapBevel =
+            List.map
+                (\( x, y, z ) -> ( (1 - d / 2) * x, (1 - d / 2) * y, z ))
+                bottom
+
+        bottomShaftBevel =
+            List.map (\( x, y, z ) -> ( x, y, z + (d / 2) * radius )) bottom
 
         bottomShaftInset =
-            List.map (\( x, y, z ) -> ( x, y, z + d )) bottom
-
-        top =
-            List.map (\( x, y, z ) -> ( x, y, length - z )) bottom
+            List.map (\( x, y, z ) -> ( x, y, z + d * radius )) bottom
 
         topCapInset =
             List.map (\( x, y, z ) -> ( x, y, length - z )) bottomCapInset
+
+        topCapBevel =
+            List.map (\( x, y, z ) -> ( x, y, length - z )) bottomCapBevel
+
+        topShaftBevel =
+            List.map (\( x, y, z ) -> ( x, y, length - z )) bottomShaftBevel
 
         topShaftInset =
             List.map (\( x, y, z ) -> ( x, y, length - z )) bottomShaftInset
@@ -396,10 +407,12 @@ cylinder radius length nrSegments =
         vertices =
             List.concat
                 [ bottomCapInset
-                , bottom
+                , bottomCapBevel
+                , bottomShaftBevel
                 , bottomShaftInset
                 , topShaftInset
-                , top
+                , topShaftBevel
+                , topCapBevel
                 , topCapInset
                 ]
                 |> List.map (\( x, y, z ) -> vec3 x y z)
@@ -410,15 +423,12 @@ cylinder radius length nrSegments =
                 |> List.map (\( i, j ) -> [ i + s, j + s, j + t, i + t ])
 
         faces =
-            List.concat
-                [ [ List.range 0 (n - 1) |> List.reverse ]
-                , ring 0 n
-                , ring n (2 * n)
-                , ring (2 * n) (3 * n)
-                , ring (3 * n) (4 * n)
-                , ring (4 * n) (5 * n)
-                , [ List.range (5 * n) (6 * n - 1) ]
-                ]
+            (List.range 0 (n - 1) |> List.reverse)
+                :: List.range (7 * n) (8 * n - 1)
+                :: (List.range 0 6
+                        |> List.map (\k -> ring (k * n) ((k + 1) * n))
+                        |> List.concat
+                   )
     in
     { verts = vertices, faces = faces }
 
