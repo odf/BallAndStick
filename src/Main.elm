@@ -13,7 +13,9 @@ import View3d.RendererCommon exposing (..)
 
 
 type alias Flags =
-    {}
+    { points : List (List Float)
+    , edges : List (List Float)
+    }
 
 
 type alias Model =
@@ -43,13 +45,10 @@ main =
 
 
 init : Flags -> ( Model, Cmd Msg )
-init _ =
+init flags =
     let
-        data =
-            nbo
-
         ( ballMeshes, ballInstances ) =
-            List.map listToPoint data.points
+            List.map listToPoint flags.points
                 |> makeBalls 0 ballMaterial 0.125
 
         ( cornerMeshes, cornerInstances ) =
@@ -57,7 +56,7 @@ init _ =
                 |> makeBalls 1 cellMaterial 0.01
 
         ( stickMeshes, stickInstances ) =
-            List.map listToEdge data.edges
+            List.map listToEdge flags.edges
                 |> makeSticks 2 stickMaterial 0.05
 
         ( edgeMeshes, edgeInstances ) =
@@ -203,10 +202,6 @@ listToEdge xs =
             ( vec3 0 0 0, vec3 0 0 0 )
 
 
-
--- Data
-
-
 unitCell : { points : List (List number), edges : List (List number) }
 unitCell =
     { points =
@@ -232,45 +227,6 @@ unitCell =
         , [ 1, 0, 0, 1, 0, 1 ]
         , [ 0, 1, 0, 0, 1, 1 ]
         , [ 1, 1, 0, 1, 1, 1 ]
-        ]
-    }
-
-
-nbo : { points : List (List Float), edges : List (List Float) }
-nbo =
-    { points =
-        [ [ 0.0, 0.0, 0.5 ]
-        , [ 0.0, 0.5, 0.0 ]
-        , [ 0.5, 0.0, 0.0 ]
-        , [ 0.0, 0.5, 0.5 ]
-        , [ 0.5, 0.0, 0.5 ]
-        , [ 0.5, 0.5, 0.0 ]
-        ]
-    , edges =
-        [ [ 0.0, 0.0, 0.5, 0.0, 0.25, 0.5 ]
-        , [ 0.0, 0.0, 0.5, 0.25, 0.0, 0.5 ]
-        , [ 0.0, 0.0, 0.5, 0.0, -0.25, 0.5 ]
-        , [ 0.0, 0.0, 0.5, -0.25, 0.0, 0.5 ]
-        , [ 0.0, 0.5, 0.0, 0.0, 0.5, 0.25 ]
-        , [ 0.0, 0.5, 0.0, 0.0, 0.5, -0.25 ]
-        , [ 0.0, 0.5, 0.0, 0.25, 0.5, 0.0 ]
-        , [ 0.0, 0.5, 0.0, -0.25, 0.5, 0.0 ]
-        , [ 0.5, 0.0, 0.0, 0.5, 0.0, 0.25 ]
-        , [ 0.5, 0.0, 0.0, 0.5, 0.0, -0.25 ]
-        , [ 0.5, 0.0, 0.0, 0.5, 0.25, 0.0 ]
-        , [ 0.5, 0.0, 0.0, 0.5, -0.25, 0.0 ]
-        , [ 0.0, 0.5, 0.5, 0.0, 0.25, 0.5 ]
-        , [ 0.0, 0.5, 0.5, 0.0, 0.5, 0.25 ]
-        , [ 0.0, 0.5, 0.5, 0.0, 0.5, 0.75 ]
-        , [ 0.0, 0.5, 0.5, 0.0, 0.75, 0.5 ]
-        , [ 0.5, 0.0, 0.5, 0.25, 0.0, 0.5 ]
-        , [ 0.5, 0.0, 0.5, 0.5, 0.0, 0.25 ]
-        , [ 0.5, 0.0, 0.5, 0.5, 0.0, 0.75 ]
-        , [ 0.5, 0.0, 0.5, 0.75, 0.0, 0.5 ]
-        , [ 0.5, 0.5, 0.0, 0.25, 0.5, 0.0 ]
-        , [ 0.5, 0.5, 0.0, 0.5, 0.25, 0.0 ]
-        , [ 0.5, 0.5, 0.0, 0.5, 0.75, 0.0 ]
-        , [ 0.5, 0.5, 0.0, 0.75, 0.5, 0.0 ]
         ]
     }
 
