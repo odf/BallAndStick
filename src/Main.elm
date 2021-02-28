@@ -3,13 +3,11 @@ module Main exposing (main)
 import Array exposing (Array)
 import Browser
 import Color
-import DelaunayTriangulation2d exposing (faces)
 import Dict
 import Html
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
-import Point2d exposing (origin)
-import View3d.Main as View3d
+import View3d
 import View3d.Mesh as Mesh
 import View3d.RendererCommon exposing (..)
 
