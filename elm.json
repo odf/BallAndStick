@@ -2,7 +2,7 @@
     "type": "application",
     "source-directories": [
         "src",
-        "../view3d/src"
+        "submodules/view3d/src"
     ],
     "elm-version": "0.19.1",
     "dependencies": {
