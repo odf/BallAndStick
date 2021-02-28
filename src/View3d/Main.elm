@@ -18,7 +18,6 @@ module View3d.Main exposing
 import Array exposing (Array)
 import Bitwise
 import Browser.Events as Events
-import Color exposing (Color)
 import DOM
 import Html exposing (Html)
 import Html.Attributes
@@ -520,12 +519,11 @@ requestRedraw model =
 -- VIEW
 
 
-view : (Msg -> msg) -> Model -> RendererCommon.Options -> Color -> Html msg
-view toMsg model options bgColor =
+view : (Msg -> msg) -> Model -> RendererCommon.Options -> Html msg
+view toMsg model options =
     let
         attributes =
             [ Html.Attributes.style "display" "block"
-            , Html.Attributes.style "background" (Color.toCssString bgColor)
             , Html.Attributes.id "main-3d-canvas"
             , Html.Attributes.width (floor model.size.width)
             , Html.Attributes.height (floor model.size.height)
@@ -545,6 +543,9 @@ view toMsg model options bgColor =
                 (toMsg TouchEndMsg)
             ]
 
+        bgEntity =
+            RendererEffects.backgroundEntity options.backgroundColor
+
         sceneEntities =
             RendererScene3d.entities model.meshesScene3d model options
 
@@ -552,7 +553,7 @@ view toMsg model options bgColor =
             RendererEffects.entities model.meshesWebGLFog model options
 
         entities =
-            sceneEntities ++ fogEntities
+            bgEntity :: sceneEntities ++ fogEntities
 
         webGLOptions =
             [ WebGL.depth 1

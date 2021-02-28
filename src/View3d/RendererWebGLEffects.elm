@@ -1,5 +1,6 @@
 module View3d.RendererWebGLEffects exposing
     ( Mesh
+    , backgroundEntity
     , convertMeshForRenderer
     , entities
     )
@@ -116,58 +117,114 @@ entities meshes model options =
             , perspective = perspective
             }
 
-        convert { transform } mesh =
-            let
-                fog =
-                    if drawFog then
-                        [ WebGL.entityWith
-                            [ Blend.add Blend.srcAlpha Blend.oneMinusSrcAlpha
-                            , DepthTest.default
-                            , WebGL.Settings.polygonOffset -1.0 -4.0
+        fogBlender =
+            Blend.custom
+                { r = 0
+                , g = 0
+                , b = 0
+                , a = 1
+                , color = Blend.customAdd Blend.srcAlpha Blend.oneMinusSrcAlpha
+                , alpha = Blend.customAdd Blend.one Blend.constantAlpha
+                }
 
-                            -- TODO eliminate mirror transformations first
-                            -- , WebGL.Settings.cullFace WebGL.Settings.back
-                            ]
-                            vertexShader
-                            fragmentShaderFog
-                            mesh
-                            { uniforms
-                                | transform = transform
-                                , color = options.backgroundColor
-                            }
-                        ]
+        makeFog { transform } mesh =
+            [ WebGL.entityWith
+                [ fogBlender
+                , DepthTest.default
+                , WebGL.Settings.polygonOffset -1.0 -4.0
 
-                    else
-                        []
+                -- TODO eliminate mirror transformations first
+                --, WebGL.Settings.cullFace WebGL.Settings.back
+                ]
+                vertexShader
+                fragmentShaderFog
+                mesh
+                { uniforms
+                    | transform = transform
+                    , color = options.backgroundColor
+                }
+            ]
 
-                outlines =
-                    if options.addOutlines then
-                        [ WebGL.entityWith
-                            [ DepthTest.default
-                            , WebGL.Settings.cullFace WebGL.Settings.front
-                            ]
-                            vertexShader
-                            fragmentShaderConstant
-                            mesh
-                            { uniforms
-                                | transform = transform
-                                , color = options.outlineColor
-                                , pushOut = 0.1 * options.outlineWidth
-                            }
-                        ]
+        makeOutline { transform } mesh =
+            [ WebGL.entityWith
+                [ DepthTest.default
+                , WebGL.Settings.cullFace WebGL.Settings.front
+                ]
+                vertexShader
+                fragmentShaderConstant
+                mesh
+                { uniforms
+                    | transform = transform
+                    , color = options.outlineColor
+                    , pushOut = 0.1 * options.outlineWidth
+                }
+            ]
 
-                    else
-                        []
-            in
-            fog ++ outlines
+        fogEntities =
+            if not drawFog then
+                []
+
+            else
+                model.scene
+                    |> List.concatMap
+                        (\item ->
+                            Array.get item.idxMesh meshes
+                                |> Maybe.map (makeFog item)
+                                |> Maybe.withDefault []
+                        )
+
+        outlineEntities =
+            if not drawFog then
+                []
+
+            else
+                model.scene
+                    |> List.concatMap
+                        (\item ->
+                            Array.get item.idxMesh meshes
+                                |> Maybe.map (makeOutline item)
+                                |> Maybe.withDefault []
+                        )
     in
-    model.scene
-        |> List.concatMap
-            (\item ->
-                Array.get item.idxMesh meshes
-                    |> Maybe.map (convert item)
-                    |> Maybe.withDefault []
-            )
+    fogEntities ++ outlineEntities
+
+
+backgroundEntity : Vec3 -> WebGL.Entity
+backgroundEntity color =
+    let
+        fullScreenQuadMesh =
+            WebGL.triangleStrip
+                [ { position = vec3 -1 -1 0 }
+                , { position = vec3 1 -1 0 }
+                , { position = vec3 -1 1 0 }
+                , { position = vec3 1 1 0 }
+                ]
+    in
+    WebGL.entityWith
+        []
+        vertexShaderTrivial
+        fragmentShaderConstant
+        fullScreenQuadMesh
+        { color = color }
+
+
+vertexShaderTrivial :
+    WebGL.Shader
+        { a | position : Vec3 }
+        { a | color : Vec3 }
+        Varyings
+vertexShaderTrivial =
+    [glsl|
+        precision lowp float;
+        attribute vec3 position;
+        varying vec3 vpos;
+        varying vec3 vnormal;
+        varying vec3 vbary;
+
+        void main() {
+            gl_Position = vec4(position, 1.0);
+        }
+    |]
 
 
 vertexShader : WebGL.Shader VertexExtended Uniforms Varyings
@@ -191,6 +248,23 @@ vertexShader =
         vpos = (viewing * transform * vec4(position, 1.0)).xyz
             + pushOut * vnormal;
         gl_Position = perspective * vec4(vpos, 1.0);
+    }
+
+    |]
+
+
+fragmentShaderConstant : WebGL.Shader {} { a | color : Vec3 } Varyings
+fragmentShaderConstant =
+    [glsl|
+
+    precision mediump float;
+    uniform vec3 color;
+    varying vec3 vpos;
+    varying vec3 vnormal;
+    varying vec3 vbary;
+
+    void main () {
+        gl_FragColor = vec4(color, 1);
     }
 
     |]
@@ -242,24 +316,6 @@ fragmentShaderFog =
         // output
 
         gl_FragColor = vec4(colorOut, alpha);
-    }
-
-    |]
-
-
-fragmentShaderConstant : WebGL.Shader {} Uniforms Varyings
-fragmentShaderConstant =
-    [glsl|
-
-    precision mediump float;
-    uniform vec3 color;
-    uniform float alpha;
-    varying vec3 vpos;
-    varying vec3 vnormal;
-    varying vec3 vbary;
-
-    void main () {
-        gl_FragColor = vec4(color, alpha);
     }
 
     |]

@@ -283,7 +283,7 @@ nbo =
 
 view : Model -> Html.Html Msg
 view model =
-    Html.div [] [ View3d.view identity model options Color.black ]
+    Html.div [] [ View3d.view identity model options ]
 
 
 options : View3d.RendererCommon.Options
