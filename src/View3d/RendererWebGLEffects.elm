@@ -46,7 +46,6 @@ type alias Uniforms =
 
 type alias Varyings =
     { vpos : Vec3
-    , vnormal : Vec3
     , vbary : Vec3
     }
 
@@ -218,7 +217,6 @@ vertexShaderTrivial =
         precision lowp float;
         attribute vec3 position;
         varying vec3 vpos;
-        varying vec3 vnormal;
         varying vec3 vbary;
 
         void main() {
@@ -239,14 +237,13 @@ vertexShader =
     uniform mat4 perspective;
     uniform float pushOut;
     varying vec3 vpos;
-    varying vec3 vnormal;
     varying vec3 vbary;
 
     void main () {
-        vbary = barycentric;
-        vnormal = normalize((viewing * transform * vec4(normal, 0.0)).xyz);
+        vec3 normal = normalize((viewing * transform * vec4(normal, 0.0)).xyz);
         vpos = (viewing * transform * vec4(position, 1.0)).xyz
-            + pushOut * vnormal;
+            + pushOut * normal;
+        vbary = barycentric;
         gl_Position = perspective * vec4(vpos, 1.0);
     }
 
@@ -260,7 +257,6 @@ fragmentShaderConstant =
     precision mediump float;
     uniform vec3 color;
     varying vec3 vpos;
-    varying vec3 vnormal;
     varying vec3 vbary;
 
     void main () {
@@ -282,7 +278,6 @@ fragmentShaderFog =
     uniform float blueShift;
     uniform float wireStrength;
     varying vec3 vpos;
-    varying vec3 vnormal;
     varying vec3 vbary;
 
     void main () {
