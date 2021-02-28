@@ -117,10 +117,10 @@ makeSticks offset material radius coordinates =
             List.map (\( u, v ) -> stickParameters u v) coordinates
 
         lengthKey x =
-            round (x * 100)
+            round (x * 1000)
 
         makeStick k =
-            cylinder radius (toFloat k / 100) 48
+            cylinder radius (toFloat k / 1000) 48
 
         sticks =
             List.map .length params
