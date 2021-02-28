@@ -122,9 +122,9 @@ entities meshes model options =
                 { r = 0
                 , g = 0
                 , b = 0
-                , a = 1
+                , a = 0
                 , color = Blend.customAdd Blend.srcAlpha Blend.oneMinusSrcAlpha
-                , alpha = Blend.customAdd Blend.one Blend.constantAlpha
+                , alpha = Blend.customAdd Blend.zero Blend.one
                 }
 
         makeFog { transform } mesh =
