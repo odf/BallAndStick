@@ -243,7 +243,7 @@ view model =
 options : View3d.RendererCommon.Options
 options =
     { orthogonalView = False
-    , drawWires = False
+    , drawWires = True
     , fadeToBackground = 0.4
     , fadeToBlue = 0.1
     , backgroundColor = vec3 0 0 0
@@ -390,6 +390,10 @@ cylinder radius length nrSegments =
 ball : Float -> PreMesh
 ball radius =
     let
+        refine =
+            subdivide
+                >> (\s -> { s | verts = List.map Vec3.normalize s.verts })
+
         tmp =
             { verts =
                 [ vec3 1 0 0
@@ -410,13 +414,11 @@ ball radius =
                 , [ 3, 4, 2 ]
                 ]
             }
-                |> subdivide
-                |> subdivide
-                |> subdivide
+                |> refine
+                |> refine
+                |> refine
     in
-    { verts = List.map (Vec3.normalize >> Vec3.scale radius) tmp.verts
-    , faces = tmp.faces
-    }
+    { tmp | verts = List.map (Vec3.scale radius) tmp.verts }
 
 
 subdivide : PreMesh -> PreMesh
