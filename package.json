@@ -4,6 +4,8 @@
   "description": "Viewer for molecular ball-and-stick models.",
   "main": "index.js",
   "scripts": {
+    "compile": "elm make src/Main.elm --output=dist/view3d.js --optimize",
+    "build": "npm run compile && cp example.html dist/index.html",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Olaf Delgado-Friedrichs",
