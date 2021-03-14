@@ -15,6 +15,7 @@ import View3d.RendererCommon exposing (..)
 type alias Flags =
     { points : List (List Float)
     , edges : List (List Float)
+    , cell : List Float
     }
 
 
@@ -47,20 +48,33 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
+        toCartesian =
+            listToCellTransform flags.cell
+
+        transformPoint p =
+            Mat4.transform toCartesian p
+
+        transformEdge ( from, to ) =
+            ( transformPoint from, transformPoint to )
+
         ( ballMeshes, ballInstances ) =
-            List.map listToPoint flags.points
+            flags.points
+                |> List.map (listToPoint >> transformPoint)
                 |> makeBalls 0 ballMaterial 0.125
 
         ( cornerMeshes, cornerInstances ) =
-            List.map listToPoint unitCell.points
+            unitCell.points
+                |> List.map (listToPoint >> transformPoint)
                 |> makeBalls 1 cellMaterial 0.01
 
         ( stickMeshes, stickInstances ) =
-            List.map listToEdge flags.edges
+            flags.edges
+                |> List.map (listToEdge >> transformEdge)
                 |> makeSticks 2 stickMaterial 0.05
 
         ( edgeMeshes, edgeInstances ) =
-            List.map listToEdge unitCell.edges
+            unitCell.edges
+                |> List.map (listToEdge >> transformEdge)
                 |> makeSticks (2 + List.length stickMeshes) cellMaterial 0.01
 
         meshes =
@@ -200,6 +214,35 @@ listToEdge xs =
 
         _ ->
             ( vec3 0 0 0, vec3 0 0 0 )
+
+
+listToCellTransform : List Float -> Mat4
+listToCellTransform xs =
+    case xs of
+        a :: b :: c :: alpha :: beta :: gamma :: _ ->
+            let
+                vx =
+                    cos (degrees gamma)
+
+                vy =
+                    sin (degrees gamma)
+
+                wx =
+                    cos (degrees beta)
+
+                wy =
+                    (cos (degrees alpha) - vx * wx) / vy
+
+                wz =
+                    sqrt (1 - wx ^ 2 - wy ^ 2)
+            in
+            Mat4.makeBasis
+                (Vec3.scale a (vec3 1 0 0))
+                (Vec3.scale b (vec3 vx vy 0))
+                (Vec3.scale c (vec3 wx wy wz))
+
+        _ ->
+            Mat4.identity
 
 
 unitCell : { points : List (List number), edges : List (List number) }
