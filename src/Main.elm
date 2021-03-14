@@ -60,7 +60,7 @@ init flags =
         ( ballMeshes, ballInstances ) =
             flags.points
                 |> List.map (listToPoint >> transformPoint)
-                |> makeBalls 0 ballMaterial 0.125
+                |> makeBalls 0 ballMaterial 0.2
 
         ( cornerMeshes, cornerInstances ) =
             unitCell.points
@@ -70,7 +70,7 @@ init flags =
         ( stickMeshes, stickInstances ) =
             flags.edges
                 |> List.map (listToEdge >> transformEdge)
-                |> makeSticks 2 stickMaterial 0.05
+                |> makeSticks 2 stickMaterial 0.08
 
         ( edgeMeshes, edgeInstances ) =
             unitCell.edges
