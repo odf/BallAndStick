@@ -243,7 +243,7 @@ view model =
 options : View3d.RendererCommon.Options
 options =
     { orthogonalView = False
-    , drawWires = True
+    , drawWires = False
     , fadeToBackground = 0.4
     , fadeToBlue = 0.1
     , backgroundColor = vec3 0 0 0
