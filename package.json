@@ -6,6 +6,8 @@
   "scripts": {
     "compile": "elm make src/Main.elm --output=dist/view3d.js --optimize",
     "build": "npm run compile && cp example.html dist/index.html",
+    "compile-dev": "elm make src/Main.elm --output=dist/view3d.js",
+    "build-dev": "npm run compile-dev && cp example.html dist/index.html",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Olaf Delgado-Friedrichs",
