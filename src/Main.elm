@@ -8,8 +8,6 @@ import Html
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import View3d
-import View3d.Mesh as Mesh
-import View3d.RendererCommon exposing (..)
 
 
 type alias Flags =
@@ -101,10 +99,10 @@ init flags =
 
 makeBalls :
     Int
-    -> Material
+    -> View3d.Material
     -> Float
     -> List Vec3
-    -> ( List PreMesh, List Instance )
+    -> ( List PreMesh, List View3d.Instance )
 makeBalls offset material radius coordinates =
     ( [ ball radius ]
     , List.map
@@ -121,10 +119,10 @@ makeBalls offset material radius coordinates =
 
 makeSticks :
     Int
-    -> Material
+    -> View3d.Material
     -> Float
     -> List ( Vec3, Vec3 )
-    -> ( List PreMesh, List Instance )
+    -> ( List PreMesh, List View3d.Instance )
 makeSticks offset material radius coordinates =
     let
         params =
@@ -172,7 +170,7 @@ makeSticks offset material radius coordinates =
     )
 
 
-stickMaterial : Material
+stickMaterial : View3d.Material
 stickMaterial =
     { color = Color.hsl 0.13 0.9 0.7
     , roughness = 0.5
@@ -180,7 +178,7 @@ stickMaterial =
     }
 
 
-ballMaterial : Material
+ballMaterial : View3d.Material
 ballMaterial =
     { color = Color.hsl 0.0 0.6 0.5
     , roughness = 0.5
@@ -188,7 +186,7 @@ ballMaterial =
     }
 
 
-cellMaterial : Material
+cellMaterial : View3d.Material
 cellMaterial =
     { color = Color.hsl 0.67 0.5 0.5
     , roughness = 0.5
@@ -283,7 +281,7 @@ view model =
     Html.div [] [ View3d.view identity model options ]
 
 
-options : View3d.RendererCommon.Options
+options : View3d.Options
 options =
     { orthogonalView = False
     , drawWires = False
@@ -516,7 +514,7 @@ subdivide { verts, faces } =
     { verts = vertices, faces = facesOut }
 
 
-makeMesh : PreMesh -> Mesh.Mesh Vertex
+makeMesh : PreMesh -> View3d.Mesh View3d.Vertex
 makeMesh { verts, faces } =
     let
         vertices =
@@ -538,7 +536,7 @@ makeMesh { verts, faces } =
         triangles =
             List.concatMap triangulate faces
     in
-    Mesh.IndexedTriangles verticesWithNormals triangles
+    View3d.indexedTriangles verticesWithNormals triangles
 
 
 edges : List Int -> List ( Int, Int )
