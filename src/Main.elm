@@ -532,11 +532,8 @@ makeMesh { verts, faces } =
             List.indexedMap
                 (\idx pos -> { position = pos, normal = vertexNormal idx })
                 verts
-
-        triangles =
-            List.concatMap triangulate faces
     in
-    View3d.indexedTriangles verticesWithNormals triangles
+    View3d.surface verticesWithNormals faces
 
 
 edges : List Int -> List ( Int, Int )
@@ -579,16 +576,6 @@ sectorData allVertices face =
     case verts of
         a :: b :: rest ->
             List.map3 compute verts (b :: rest ++ [ a ]) (rest ++ [ a, b ])
-
-        _ ->
-            []
-
-
-triangulate : List vertex -> List ( vertex, vertex, vertex )
-triangulate corners =
-    case corners of
-        u :: v :: w :: rest ->
-            ( w, u, v ) :: List.map2 (\r s -> ( u, r, s )) (w :: rest) rest
 
         _ ->
             []
