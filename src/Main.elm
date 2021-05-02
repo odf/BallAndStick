@@ -514,7 +514,7 @@ subdivide { verts, faces } =
     { verts = vertices, faces = facesOut }
 
 
-makeMesh : PreMesh -> View3d.Mesh View3d.Vertex
+makeMesh : PreMesh -> View3d.Mesh
 makeMesh { verts, faces } =
     let
         vertices =
