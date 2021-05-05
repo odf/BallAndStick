@@ -1,12 +1,18 @@
 module Main exposing (main)
 
-import Array exposing (Array)
+import Axis3d
 import Browser
 import Color
 import Dict
 import Html
+import Length
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
+import Mesh
+import Plane3d
+import Point3d exposing (Point3d)
+import TriangularMesh exposing (TriangularMesh)
+import Vector3d exposing (Vector3d)
 import View3d
 
 
@@ -23,10 +29,6 @@ type alias Model =
 
 type alias Msg =
     View3d.Msg
-
-
-type alias PreMesh =
-    { verts : List Vec3, faces : List (List Int) }
 
 
 main : Program Flags Model Msg
@@ -80,7 +82,6 @@ init flags =
                 ++ cornerMeshes
                 ++ stickMeshes
                 ++ edgeMeshes
-                |> List.map makeMesh
 
         instances =
             ballInstances
@@ -102,7 +103,7 @@ makeBalls :
     -> View3d.Material
     -> Float
     -> List Vec3
-    -> ( List PreMesh, List View3d.Instance )
+    -> ( List (TriangularMesh View3d.Vertex), List View3d.Instance )
 makeBalls offset material radius coordinates =
     ( [ ball radius ]
     , List.map
@@ -122,7 +123,7 @@ makeSticks :
     -> View3d.Material
     -> Float
     -> List ( Vec3, Vec3 )
-    -> ( List PreMesh, List View3d.Instance )
+    -> ( List (TriangularMesh View3d.Vertex), List View3d.Instance )
 makeSticks offset material radius coordinates =
     let
         params =
@@ -355,227 +356,103 @@ stickParameters from to =
     }
 
 
-cylinder : Float -> Float -> Int -> PreMesh
+cylinder : Float -> Float -> Int -> TriangularMesh View3d.Vertex
 cylinder radius length nrSegments =
     let
-        n =
-            nrSegments
-
-        a =
-            2 * pi / toFloat n
-
         d =
-            0.1
+            radius * 0.1
 
-        bottom =
-            List.range 0 (n - 1)
-                |> List.map toFloat
-                |> List.map
-                    (\i -> ( radius * cos (a * i), radius * sin (a * i), 0 ))
+        angle u =
+            toFloat u * 2 * pi / toFloat nrSegments
 
-        bottomCapInset =
-            List.map (\( x, y, z ) -> ( (1 - d) * x, (1 - d) * y, z )) bottom
+        radial a r z =
+            Point3d.meters (r * cos a) (r * sin a) z
 
-        bottomCapBevel =
-            List.map
-                (\( x, y, z ) -> ( (1 - d / 2) * x, (1 - d / 2) * y, z ))
-                bottom
+        midplane =
+            Plane3d.xy |> Plane3d.offsetBy (Length.meters (length / 2))
 
-        bottomShaftBevel =
-            List.map (\( x, y, z ) -> ( x, y, z + (d / 2) * radius )) bottom
+        position u v =
+            if v > 4 then
+                position u (9 - v) |> Point3d.mirrorAcross midplane
 
-        bottomShaftInset =
-            List.map (\( x, y, z ) -> ( x, y, z + d * radius )) bottom
+            else
+                case v of
+                    0 ->
+                        radial (angle u) 0 0
 
-        topCapInset =
-            List.map (\( x, y, z ) -> ( x, y, length - z )) bottomCapInset
+                    1 ->
+                        radial (angle u) (radius - d) 0
 
-        topCapBevel =
-            List.map (\( x, y, z ) -> ( x, y, length - z )) bottomCapBevel
+                    2 ->
+                        radial (angle u) (radius - d / 2) 0
 
-        topShaftBevel =
-            List.map (\( x, y, z ) -> ( x, y, length - z )) bottomShaftBevel
+                    3 ->
+                        radial (angle u) radius (d / 2)
 
-        topShaftInset =
-            List.map (\( x, y, z ) -> ( x, y, length - z )) bottomShaftInset
-
-        vertices =
-            List.concat
-                [ bottomCapInset
-                , bottomCapBevel
-                , bottomShaftBevel
-                , bottomShaftInset
-                , topShaftInset
-                , topShaftBevel
-                , topCapBevel
-                , topCapInset
-                ]
-                |> List.map (\( x, y, z ) -> vec3 x y z)
-
-        ring s t =
-            List.range 0 (n - 1)
-                |> List.map (\i -> ( i, modBy n (i + 1) ))
-                |> List.map (\( i, j ) -> [ i + s, j + s, j + t, i + t ])
-
-        faces =
-            (List.range 0 (n - 1) |> List.reverse)
-                :: List.range (7 * n) (8 * n - 1)
-                :: (List.range 0 6
-                        |> List.map (\k -> ring (k * n) ((k + 1) * n))
-                        |> List.concat
-                   )
+                    _ ->
+                        radial (angle u) radius d
     in
-    { verts = vertices, faces = faces }
+    Mesh.indexedBall nrSegments 9 position |> convertMesh
 
 
-ball : Float -> PreMesh
+ball : Float -> TriangularMesh View3d.Vertex
 ball radius =
     let
-        refine =
-            subdivide
-                >> (\s -> { s | verts = List.map Vec3.normalize s.verts })
-
-        tmp =
-            { verts =
-                [ vec3 1 0 0
-                , vec3 0 1 0
-                , vec3 0 0 1
-                , vec3 -1 0 0
-                , vec3 0 -1 0
-                , vec3 0 0 -1
-                ]
-            , faces =
-                [ [ 0, 1, 2 ]
-                , [ 1, 0, 5 ]
-                , [ 2, 1, 3 ]
-                , [ 0, 2, 4 ]
-                , [ 3, 5, 4 ]
-                , [ 5, 3, 1 ]
-                , [ 4, 5, 0 ]
-                , [ 3, 4, 2 ]
-                ]
-            }
-                |> refine
-                |> refine
-                |> refine
-    in
-    { tmp | verts = List.map (Vec3.scale radius) tmp.verts }
-
-
-subdivide : PreMesh -> PreMesh
-subdivide { verts, faces } =
-    let
-        vertexArray =
-            Array.fromList verts
-
-        centroid vs =
-            List.map (\v -> Array.get v vertexArray) vs
-                |> List.filterMap identity
-                |> List.foldl Vec3.add (vec3 0 0 0)
-                |> Vec3.scale (1 / toFloat (List.length vs))
-
-        allEdges =
-            List.concatMap edges faces
-                |> List.filter (\( u, v ) -> u < v)
-
-        n =
-            List.length verts
-
-        m =
-            List.length allEdges
-
-        midPointIndex =
-            List.indexedMap (\i e -> ( e, i + n )) allEdges
-                |> List.concatMap
-                    (\( ( u, v ), i ) -> [ ( ( u, v ), i ), ( ( v, u ), i ) ])
+        positions =
+            [ ( ( 0, 0 ), Point3d.meters 0 0 -1 )
+            , ( ( 0, 1 ), Point3d.meters 1 0 0 )
+            , ( ( 1, 1 ), Point3d.meters 0 1 0 )
+            , ( ( 2, 1 ), Point3d.meters -1 0 0 )
+            , ( ( 3, 1 ), Point3d.meters 0 -1 0 )
+            , ( ( 0, 2 ), Point3d.meters 0 0 1 )
+            ]
                 |> Dict.fromList
 
-        vertices =
-            List.concat
-                [ verts
-                , List.map (\( u, v ) -> centroid [ u, v ]) allEdges
-                , List.map centroid faces
-                ]
+        getPosition =
+            flip Dict.get positions
+                >> Maybe.withDefault (Point3d.meters 0 0 0)
 
-        makeSubFace i ( u, v, w ) =
-            [ Dict.get ( u, v ) midPointIndex
-            , Just v
-            , Dict.get ( v, w ) midPointIndex
-            , Just (n + m + i)
-            ]
-                |> List.filterMap identity
+        pushOut p =
+            let
+                axis =
+                    Axis3d.throughPoints Point3d.origin p
+                        |> Maybe.withDefault Axis3d.x
+            in
+            Point3d.along axis (Length.meters radius)
 
-        facesOut =
-            faces
-                |> List.indexedMap
-                    (\i f -> List.map (makeSubFace i) (sectors f))
-                |> List.concat
+        refine =
+            Mesh.subdivideSmoothly (always False) identity (always identity)
+                >> Mesh.mapVertices pushOut
     in
-    { verts = vertices, faces = facesOut }
+    Mesh.indexedBall 4 2 Tuple.pair
+        |> Mesh.mapVertices getPosition
+        |> refine
+        |> refine
+        |> refine
+        |> convertMesh
 
 
-makeMesh : PreMesh -> View3d.Mesh
-makeMesh { verts, faces } =
+convertMesh : Mesh.Mesh (Point3d units coords) -> TriangularMesh View3d.Vertex
+convertMesh meshIn =
     let
-        vertices =
-            Array.fromList verts
-
-        allSectorData =
-            List.concatMap (sectorData vertices) faces
-
-        vertexNormal idx =
-            List.filter (\e -> e.idx == idx) allSectorData
-                |> List.map .normal
-                |> List.foldl Vec3.add (vec3 0 0 0)
-
-        verticesWithNormals =
-            List.indexedMap
-                (\idx pos -> { position = pos, normal = vertexNormal idx })
-                verts
-    in
-    View3d.surface verticesWithNormals faces
-
-
-edges : List Int -> List ( Int, Int )
-edges face =
-    case face of
-        a :: rest ->
-            List.map2 Tuple.pair face (rest ++ [ a ])
-
-        _ ->
-            []
-
-
-sectors : List Int -> List ( Int, Int, Int )
-sectors face =
-    case face of
-        a :: b :: rest ->
-            List.map3 (\u v w -> ( u, v, w ))
-                face
-                (b :: rest ++ [ a ])
-                (rest ++ [ a, b ])
-
-        _ ->
-            []
-
-
-sectorData : Array Vec3 -> List Int -> List { idx : Int, normal : Vec3 }
-sectorData allVertices face =
-    let
-        getPos v =
-            Array.get v allVertices |> Maybe.withDefault (vec3 0 0 0)
-
-        verts =
-            List.map (\v -> { idx = v, pos = getPos v }) face
-
-        compute u v w =
-            { idx = v.idx
-            , normal = Vec3.cross (Vec3.sub w.pos v.pos) (Vec3.sub u.pos v.pos)
+        makeVertex point normal =
+            { position = pointToVec3 point
+            , normal = normalToVec3 normal
             }
     in
-    case verts of
-        a :: b :: rest ->
-            List.map3 compute verts (b :: rest ++ [ a ]) (rest ++ [ a, b ])
+    Mesh.withNormals identity makeVertex meshIn |> Mesh.toTriangularMesh
 
-        _ ->
-            []
+
+pointToVec3 : Point3d units coordinates -> Vec3
+pointToVec3 point =
+    Vec3.fromRecord (Point3d.unwrap point)
+
+
+normalToVec3 : Vector3d units coordinates -> Vec3
+normalToVec3 normal =
+    Vec3.fromRecord (Vector3d.unwrap normal)
+
+
+flip : (a -> b -> c) -> b -> a -> c
+flip f a b =
+    f b a
