@@ -114,10 +114,8 @@ makeBalls offset material radius coordinates =
     ( [ ball radius ]
     , List.map
         (\pos ->
-            { material = material
-            , transform = Mat4.makeTranslate pos
-            , idxMesh = offset
-            }
+            View3d.instance material offset
+                |> View3d.transform (Mat4.makeTranslate pos)
         )
         coordinates
     )
@@ -161,20 +159,19 @@ makeSticks offset material radius coordinates =
                 |> List.indexedMap (\i k -> ( k, i ))
                 |> Dict.fromList
 
+        makeMatrix origin rotation =
+            Mat4.mul (Mat4.makeTranslate origin) rotation
+
         makeInstance { origin, length, rotation } =
-            let
-                idxMesh =
-                    Dict.get (lengthKey length) stickIndex
-                        |> Maybe.withDefault -1
-            in
-            { material = material
-            , transform = Mat4.mul (Mat4.makeTranslate origin) rotation
-            , idxMesh = idxMesh + offset
-            }
+            Dict.get (lengthKey length) stickIndex
+                |> Maybe.map
+                    ((+) offset
+                        >> View3d.instance material
+                        >> View3d.transform (makeMatrix origin rotation)
+                    )
     in
     ( Dict.values sticks
-    , List.map makeInstance params
-        |> List.filter (\inst -> inst.idxMesh >= 0)
+    , List.filterMap makeInstance params
     )
 
 
