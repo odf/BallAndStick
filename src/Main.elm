@@ -12,7 +12,6 @@ import Mesh
 import Plane3d
 import Point3d exposing (Point3d)
 import TriangularMesh exposing (TriangularMesh)
-import Vector3d exposing (Vector3d)
 import View3d
 
 
@@ -23,8 +22,12 @@ type alias Flags =
     }
 
 
+type WorldCoordinates
+    = WorldCoordinates
+
+
 type alias Model =
-    View3d.Model
+    View3d.Model WorldCoordinates
 
 
 type alias Msg =
@@ -103,7 +106,10 @@ makeBalls :
     -> View3d.Material
     -> Float
     -> List Vec3
-    -> ( List (TriangularMesh View3d.Vertex), List View3d.Instance )
+    ->
+        ( List (TriangularMesh (View3d.Vertex Length.Meters coords))
+        , List View3d.Instance
+        )
 makeBalls offset material radius coordinates =
     ( [ ball radius ]
     , List.map
@@ -122,7 +128,10 @@ makeSticks :
     -> View3d.Material
     -> Float
     -> List ( Vec3, Vec3 )
-    -> ( List (TriangularMesh View3d.Vertex), List View3d.Instance )
+    ->
+        ( List (TriangularMesh (View3d.Vertex Length.Meters coords))
+        , List View3d.Instance
+        )
 makeSticks offset material radius coordinates =
     let
         params =
@@ -354,7 +363,11 @@ stickParameters from to =
     }
 
 
-cylinder : Float -> Float -> Int -> TriangularMesh View3d.Vertex
+cylinder :
+    Float
+    -> Float
+    -> Int
+    -> TriangularMesh (View3d.Vertex Length.Meters coords)
 cylinder radius length nrSegments =
     let
         d =
@@ -393,7 +406,7 @@ cylinder radius length nrSegments =
     Mesh.indexedBall nrSegments 9 position |> convertMesh
 
 
-ball : Float -> TriangularMesh View3d.Vertex
+ball : Float -> TriangularMesh (View3d.Vertex Length.Meters coords)
 ball radius =
     let
         positions =
@@ -430,25 +443,15 @@ ball radius =
         |> convertMesh
 
 
-convertMesh : Mesh.Mesh (Point3d units coords) -> TriangularMesh View3d.Vertex
+convertMesh :
+    Mesh.Mesh (Point3d units coords)
+    -> TriangularMesh (View3d.Vertex units coords)
 convertMesh meshIn =
     let
-        makeVertex point normal =
-            { position = pointToVec3 point
-            , normal = normalToVec3 normal
-            }
+        makeVertex position normal =
+            { position = position, normal = normal }
     in
     Mesh.withNormals identity makeVertex meshIn |> Mesh.toTriangularMesh
-
-
-pointToVec3 : Point3d units coordinates -> Vec3
-pointToVec3 point =
-    Vec3.fromRecord (Point3d.unwrap point)
-
-
-normalToVec3 : Vector3d units coordinates -> Vec3
-normalToVec3 normal =
-    Vec3.fromRecord (Vector3d.unwrap normal)
 
 
 flip : (a -> b -> c) -> b -> a -> c
