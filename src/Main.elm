@@ -111,7 +111,6 @@ makeBalls offset material radius coordinates =
             { material = material
             , transform = Mat4.makeTranslate pos
             , idxMesh = offset
-            , idxInstance = 0
             }
         )
         coordinates
@@ -162,7 +161,6 @@ makeSticks offset material radius coordinates =
             { material = material
             , transform = Mat4.mul (Mat4.makeTranslate origin) rotation
             , idxMesh = idxMesh + offset
-            , idxInstance = 0
             }
     in
     ( Dict.values sticks
