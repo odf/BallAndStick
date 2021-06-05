@@ -54,6 +54,75 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
+        ( meshes, instances ) =
+            geometry flags
+
+        model =
+            View3d.init
+                |> View3d.setSize { width = 768, height = 768 }
+                |> View3d.setScene (Just meshes) instances
+                |> View3d.encompass
+    in
+    ( model, Cmd.none )
+
+
+
+-- View
+
+
+view : Model -> Html.Html Msg
+view model =
+    Html.div [] [ View3d.view identity model options ]
+
+
+options : View3d.Options
+options =
+    { orthogonalView = False
+    , drawWires = False
+    , fadeToBackground = 0.4
+    , fadeToBlue = 0.1
+    , backgroundColor = Color.black
+    , addOutlines = False
+    , outlineWidth = 0.0
+    , outlineColor = Color.black
+    , drawShadows = True
+    }
+
+
+
+-- Update
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    let
+        ( newModel, _ ) =
+            View3d.update msg model
+    in
+    ( newModel, Cmd.none )
+
+
+
+-- Subscriptions
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    View3d.subscriptions identity model
+
+
+
+-- Geometry
+
+
+geometry :
+    Flags
+    ->
+        ( List (TriangularMesh (View3d.Vertex coords))
+        , List (View3d.Instance coords)
+        )
+geometry flags =
+    let
         toCartesian =
             listToCellTransform flags.cell
 
@@ -94,14 +163,8 @@ init flags =
                 ++ cornerInstances
                 ++ stickInstances
                 ++ edgeInstances
-
-        model =
-            View3d.init
-                |> View3d.setSize { width = 768, height = 768 }
-                |> View3d.setScene (Just meshes) instances
-                |> View3d.encompass
     in
-    ( model, Cmd.none )
+    ( meshes, instances )
 
 
 positionVector : Vec3 -> Vector3d.Vector3d Length.Meters coords
@@ -280,55 +343,6 @@ unitCell =
         , [ 1, 1, 0, 1, 1, 1 ]
         ]
     }
-
-
-
--- View
-
-
-view : Model -> Html.Html Msg
-view model =
-    Html.div [] [ View3d.view identity model options ]
-
-
-options : View3d.Options
-options =
-    { orthogonalView = False
-    , drawWires = False
-    , fadeToBackground = 0.4
-    , fadeToBlue = 0.1
-    , backgroundColor = Color.black
-    , addOutlines = False
-    , outlineWidth = 0.0
-    , outlineColor = Color.black
-    , drawShadows = True
-    }
-
-
-
--- Update
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    let
-        ( newModel, _ ) =
-            View3d.update msg model
-    in
-    ( newModel, Cmd.none )
-
-
-
--- Subscriptions
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    View3d.subscriptions identity model
-
-
-
--- Geometry
 
 
 stickParameters :
