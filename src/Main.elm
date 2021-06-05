@@ -4,6 +4,8 @@ import Axis3d
 import Browser
 import Color
 import Dict
+import Direction3d
+import Frame3d exposing (Frame3d)
 import Html
 import Length
 import Math.Matrix4 as Mat4 exposing (Mat4)
@@ -12,6 +14,7 @@ import Mesh
 import Plane3d
 import Point3d exposing (Point3d)
 import TriangularMesh exposing (TriangularMesh)
+import Vector3d
 import View3d
 
 
@@ -101,21 +104,26 @@ init flags =
     ( model, Cmd.none )
 
 
+positionVector : Vec3 -> Vector3d.Vector3d Length.Meters coords
+positionVector pos =
+    Vec3.toRecord pos |> Vector3d.fromMeters
+
+
 makeBalls :
     Int
     -> View3d.Material
     -> Float
     -> List Vec3
     ->
-        ( List (TriangularMesh (View3d.Vertex Length.Meters coords))
-        , List View3d.Instance
+        ( List (TriangularMesh (View3d.Vertex coords))
+        , List (View3d.Instance coords)
         )
 makeBalls offset material radius coordinates =
     ( [ ball radius ]
     , List.map
         (\pos ->
             View3d.instance material offset
-                |> View3d.transform (Mat4.makeTranslate pos)
+                |> View3d.translateInstanceBy (positionVector pos)
         )
         coordinates
     )
@@ -127,8 +135,8 @@ makeSticks :
     -> Float
     -> List ( Vec3, Vec3 )
     ->
-        ( List (TriangularMesh (View3d.Vertex Length.Meters coords))
-        , List View3d.Instance
+        ( List (TriangularMesh (View3d.Vertex coords))
+        , List (View3d.Instance coords)
         )
 makeSticks offset material radius coordinates =
     let
@@ -159,15 +167,12 @@ makeSticks offset material radius coordinates =
                 |> List.indexedMap (\i k -> ( k, i ))
                 |> Dict.fromList
 
-        makeMatrix origin rotation =
-            Mat4.mul (Mat4.makeTranslate origin) rotation
-
-        makeInstance { origin, length, rotation } =
+        makeInstance { length, frame } =
             Dict.get (lengthKey length) stickIndex
                 |> Maybe.map
                     ((+) offset
                         >> View3d.instance material
-                        >> View3d.transform (makeMatrix origin rotation)
+                        >> View3d.placeInstanceIn frame
                     )
     in
     ( Dict.values sticks
@@ -329,34 +334,24 @@ subscriptions model =
 stickParameters :
     Vec3
     -> Vec3
-    -> { origin : Vec3, length : Float, rotation : Mat4 }
+    ->
+        { length : Float
+        , frame : Frame3d Length.Meters coords defines
+        }
 stickParameters from to =
     let
-        w =
-            Vec3.direction to from
+        origin =
+            Vec3.toRecord from |> Point3d.fromMeters
 
-        ex =
-            vec3 1 0 0
+        destination =
+            Vec3.toRecord to |> Point3d.fromMeters
 
-        ey =
-            vec3 0 1 0
-
-        t =
-            if abs (Vec3.dot w ex) < abs (Vec3.dot w ey) then
-                ex
-
-            else
-                ey
-
-        u =
-            Vec3.normalize (Vec3.cross w t)
-
-        v =
-            Vec3.normalize (Vec3.cross w u)
+        direction =
+            Direction3d.from origin destination
+                |> Maybe.withDefault Direction3d.x
     in
-    { origin = from
-    , length = Vec3.distance from to
-    , rotation = Mat4.makeBasis u v w
+    { length = Vec3.distance from to
+    , frame = Frame3d.withZDirection direction origin
     }
 
 
@@ -364,7 +359,7 @@ cylinder :
     Float
     -> Float
     -> Int
-    -> TriangularMesh (View3d.Vertex Length.Meters coords)
+    -> TriangularMesh (View3d.Vertex coords)
 cylinder radius length nrSegments =
     let
         d =
@@ -403,7 +398,7 @@ cylinder radius length nrSegments =
     Mesh.indexedBall nrSegments 9 position |> convertMesh
 
 
-ball : Float -> TriangularMesh (View3d.Vertex Length.Meters coords)
+ball : Float -> TriangularMesh (View3d.Vertex coords)
 ball radius =
     let
         positions =
@@ -441,8 +436,8 @@ ball radius =
 
 
 convertMesh :
-    Mesh.Mesh (Point3d units coords)
-    -> TriangularMesh (View3d.Vertex units coords)
+    Mesh.Mesh (Point3d Length.Meters coords)
+    -> TriangularMesh (View3d.Vertex coords)
 convertMesh meshIn =
     let
         makeVertex position normal =
