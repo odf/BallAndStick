@@ -151,20 +151,10 @@ geometry flags =
             unitCell.edges
                 |> List.map (listToEdge >> transformEdge)
                 |> makeSticks (2 + List.length stickMeshes) cellMaterial 0.01
-
-        meshes =
-            ballMeshes
-                ++ cornerMeshes
-                ++ stickMeshes
-                ++ edgeMeshes
-
-        instances =
-            ballInstances
-                ++ cornerInstances
-                ++ stickInstances
-                ++ edgeInstances
     in
-    ( meshes, instances )
+    ( ballMeshes ++ cornerMeshes ++ stickMeshes ++ edgeMeshes
+    , ballInstances ++ cornerInstances ++ stickInstances ++ edgeInstances
+    )
 
 
 positionVector : Vec3 -> Vector3d.Vector3d Length.Meters coords
@@ -209,21 +199,17 @@ makeSticks offset material radius coordinates =
         lengthKey x =
             round (x * 1000)
 
-        makeStick k =
-            cylinder radius (toFloat k / 1000) 48
+        addStick k d =
+            if Dict.member k d then
+                d
+
+            else
+                cylinder radius (toFloat k / 1000) 48
+                    |> flip (Dict.insert k) d
 
         sticks =
-            List.map .length params
-                |> List.map lengthKey
-                |> List.foldl
-                    (\k d ->
-                        if Dict.member k d then
-                            d
-
-                        else
-                            Dict.insert k (makeStick k) d
-                    )
-                    Dict.empty
+            List.map (.length >> lengthKey) params
+                |> List.foldl addStick Dict.empty
 
         stickIndex =
             Dict.keys sticks
