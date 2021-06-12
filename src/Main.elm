@@ -16,6 +16,7 @@ import Point3d exposing (Point3d)
 import TriangularMesh exposing (TriangularMesh)
 import Vector3d
 import View3d
+import View3d.Instance as Instance exposing (Instance)
 
 
 type alias Flags =
@@ -72,21 +73,11 @@ init flags =
 
 view : Model -> Html.Html Msg
 view model =
+    let
+        options =
+            View3d.defaultOptions
+    in
     Html.div [] [ View3d.view identity model options ]
-
-
-options : View3d.Options
-options =
-    { orthogonalView = False
-    , drawWires = False
-    , fadeToBackground = 0.4
-    , fadeToBlue = 0.1
-    , backgroundColor = Color.black
-    , addOutlines = False
-    , outlineWidth = 0.0
-    , outlineColor = Color.black
-    , drawShadows = True
-    }
 
 
 
@@ -117,10 +108,7 @@ subscriptions model =
 
 geometry :
     Flags
-    ->
-        ( List (TriangularMesh (View3d.Vertex coords))
-        , List (View3d.Instance coords)
-        )
+    -> ( List (TriangularMesh (View3d.Vertex coords)), List (Instance coords) )
 geometry flags =
     let
         toCartesian =
@@ -167,16 +155,13 @@ makeBalls :
     -> View3d.Material
     -> Float
     -> List Vec3
-    ->
-        ( List (TriangularMesh (View3d.Vertex coords))
-        , List (View3d.Instance coords)
-        )
+    -> ( List (TriangularMesh (View3d.Vertex coords)), List (Instance coords) )
 makeBalls offset material radius coordinates =
     ( [ ball radius ]
     , List.map
         (\pos ->
-            View3d.instance material offset
-                |> View3d.translateInstanceBy (positionVector pos)
+            Instance.make material offset
+                |> Instance.translateBy (positionVector pos)
         )
         coordinates
     )
@@ -187,10 +172,7 @@ makeSticks :
     -> View3d.Material
     -> Float
     -> List ( Vec3, Vec3 )
-    ->
-        ( List (TriangularMesh (View3d.Vertex coords))
-        , List (View3d.Instance coords)
-        )
+    -> ( List (TriangularMesh (View3d.Vertex coords)), List (Instance coords) )
 makeSticks offset material radius coordinates =
     let
         params =
@@ -220,8 +202,8 @@ makeSticks offset material radius coordinates =
             Dict.get (lengthKey length) stickIndex
                 |> Maybe.map
                     ((+) offset
-                        >> View3d.instance material
-                        >> View3d.placeInstanceIn frame
+                        >> Instance.make material
+                        >> Instance.placeIn frame
                     )
     in
     ( Dict.values sticks
