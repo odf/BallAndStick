@@ -13,7 +13,6 @@ import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import Mesh
 import Plane3d
 import Point3d exposing (Point3d)
-import TriangularMesh exposing (TriangularMesh)
 import Vector3d
 import View3d
 import View3d.Instance as Instance exposing (Instance)
@@ -55,13 +54,10 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
-        ( meshes, instances ) =
-            geometry flags
-
         model =
             View3d.init
                 |> View3d.setSize { width = 768, height = 768 }
-                |> View3d.setScene (Just meshes) instances
+                |> View3d.setScene (geometry flags)
                 |> View3d.encompass
     in
     ( model, Cmd.none )
@@ -106,9 +102,7 @@ subscriptions model =
 -- Geometry
 
 
-geometry :
-    Flags
-    -> ( List (TriangularMesh (View3d.Vertex coords)), List (Instance coords) )
+geometry : Flags -> List (Instance coords)
 geometry flags =
     let
         toCartesian =
@@ -120,29 +114,27 @@ geometry flags =
         transformEdge ( from, to ) =
             ( transformPoint from, transformPoint to )
 
-        ( ballMeshes, ballInstances ) =
+        balls =
             flags.points
                 |> List.map (listToPoint >> transformPoint)
-                |> makeBalls 0 ballMaterial 0.2
+                |> makeBalls ballMaterial 0.2
 
-        ( cornerMeshes, cornerInstances ) =
+        corners =
             unitCell.points
                 |> List.map (listToPoint >> transformPoint)
-                |> makeBalls 1 cellMaterial 0.01
+                |> makeBalls cellMaterial 0.01
 
-        ( stickMeshes, stickInstances ) =
+        sticks =
             flags.edges
                 |> List.map (listToEdge >> transformEdge)
-                |> makeSticks 2 stickMaterial 0.08
+                |> makeSticks stickMaterial 0.08
 
-        ( edgeMeshes, edgeInstances ) =
+        edges =
             unitCell.edges
                 |> List.map (listToEdge >> transformEdge)
-                |> makeSticks (2 + List.length stickMeshes) cellMaterial 0.01
+                |> makeSticks cellMaterial 0.01
     in
-    ( ballMeshes ++ cornerMeshes ++ stickMeshes ++ edgeMeshes
-    , ballInstances ++ cornerInstances ++ stickInstances ++ edgeInstances
-    )
+    balls ++ corners ++ sticks ++ edges
 
 
 positionVector : Vec3 -> Vector3d.Vector3d Length.Meters coords
@@ -150,30 +142,25 @@ positionVector pos =
     Vec3.toRecord pos |> Vector3d.fromMeters
 
 
-makeBalls :
-    Int
-    -> View3d.Material
-    -> Float
-    -> List Vec3
-    -> ( List (TriangularMesh (View3d.Vertex coords)), List (Instance coords) )
-makeBalls offset material radius coordinates =
-    ( [ ball radius ]
-    , List.map
-        (\pos ->
-            Instance.make material offset
+makeBalls : View3d.Material -> Float -> List Vec3 -> List (Instance coords)
+makeBalls material radius coordinates =
+    let
+        mesh =
+            ball radius
+
+        makeInstance pos =
+            Instance.make material mesh
                 |> Instance.translateBy (positionVector pos)
-        )
-        coordinates
-    )
+    in
+    List.map makeInstance coordinates
 
 
 makeSticks :
-    Int
-    -> View3d.Material
+    View3d.Material
     -> Float
     -> List ( Vec3, Vec3 )
-    -> ( List (TriangularMesh (View3d.Vertex coords)), List (Instance coords) )
-makeSticks offset material radius coordinates =
+    -> List (Instance coords)
+makeSticks material radius coordinates =
     let
         params =
             List.map (\( u, v ) -> stickParameters u v) coordinates
@@ -193,22 +180,11 @@ makeSticks offset material radius coordinates =
             List.map (.length >> lengthKey) params
                 |> List.foldl addStick Dict.empty
 
-        stickIndex =
-            Dict.keys sticks
-                |> List.indexedMap (\i k -> ( k, i ))
-                |> Dict.fromList
-
         makeInstance { length, frame } =
-            Dict.get (lengthKey length) stickIndex
-                |> Maybe.map
-                    ((+) offset
-                        >> Instance.make material
-                        >> Instance.placeIn frame
-                    )
+            Dict.get (lengthKey length) sticks
+                |> Maybe.map (Instance.make material >> Instance.placeIn frame)
     in
-    ( Dict.values sticks
-    , List.filterMap makeInstance params
-    )
+    List.filterMap makeInstance params
 
 
 stickMaterial : View3d.Material
@@ -337,11 +313,7 @@ stickParameters from to =
     }
 
 
-cylinder :
-    Float
-    -> Float
-    -> Int
-    -> TriangularMesh (View3d.Vertex coords)
+cylinder : Float -> Float -> Int -> View3d.Mesh coords
 cylinder radius length nrSegments =
     let
         d =
@@ -380,7 +352,7 @@ cylinder radius length nrSegments =
     Mesh.indexedBall nrSegments 9 position |> convertMesh
 
 
-ball : Float -> TriangularMesh (View3d.Vertex coords)
+ball : Float -> View3d.Mesh coords
 ball radius =
     let
         positions =
@@ -417,15 +389,15 @@ ball radius =
         |> convertMesh
 
 
-convertMesh :
-    Mesh.Mesh (Point3d Length.Meters coords)
-    -> TriangularMesh (View3d.Vertex coords)
+convertMesh : Mesh.Mesh (Point3d Length.Meters coords) -> View3d.Mesh coords
 convertMesh meshIn =
     let
         makeVertex position normal =
             { position = position, normal = normal }
     in
-    Mesh.withNormals identity makeVertex meshIn |> Mesh.toTriangularMesh
+    Mesh.withNormals identity makeVertex meshIn
+        |> Mesh.toTriangularMesh
+        |> View3d.mesh
 
 
 flip : (a -> b -> c) -> b -> a -> c
