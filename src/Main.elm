@@ -19,10 +19,15 @@ import View3d.Instance as Instance exposing (Instance)
 
 
 type alias Flags =
+    { structure : Structure
+    , options : OptionsJS
+    }
+
+
+type alias Structure =
     { points : List (List Float)
     , edges : List (List Float)
     , cell : List Float
-    , options : OptionsJS
     }
 
 
@@ -189,7 +194,7 @@ geometry flags =
             flags.options.colorCell |> makeColorHSL |> baseMaterial
 
         toCartesian =
-            listToCellTransform flags.cell
+            listToCellTransform flags.structure.cell
 
         transformPoint p =
             Mat4.transform toCartesian p
@@ -198,7 +203,7 @@ geometry flags =
             ( transformPoint from, transformPoint to )
 
         balls =
-            flags.points
+            flags.structure.points
                 |> List.map (listToPoint >> transformPoint)
                 |> makeBalls matBalls 0.2
 
@@ -208,7 +213,7 @@ geometry flags =
                 |> makeBalls matCell 0.01
 
         sticks =
-            flags.edges
+            flags.structure.edges
                 |> List.map (listToEdge >> transformEdge)
                 |> makeSticks matSticks 0.08
 
