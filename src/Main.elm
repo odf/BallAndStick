@@ -22,6 +22,32 @@ type alias Flags =
     { points : List (List Float)
     , edges : List (List Float)
     , cell : List Float
+    , options : OptionsJS
+    }
+
+
+type alias OptionsJS =
+    { sizeFrame : Size2d
+    , background : ColorHSL
+    , perspective : Bool
+    , shadows : Bool
+    , depthCueing : Bool
+    , colorSticks : ColorHSL
+    , colorBalls : ColorHSL
+    , colorCell : ColorHSL
+    }
+
+
+type alias Size2d =
+    { width : Float
+    , height : Float
+    }
+
+
+type alias ColorHSL =
+    { hue : Float
+    , saturation : Float
+    , lightness : Float
     }
 
 
@@ -30,7 +56,12 @@ type WorldCoordinates
 
 
 type alias Model =
-    View3d.Model WorldCoordinates
+    { scene : View3d.Model WorldCoordinates
+    , background : Color.Color
+    , orthographic : Bool
+    , shadows : Bool
+    , depthCueing : Bool
+    }
 
 
 type alias Msg =
@@ -54,11 +85,19 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
-        model =
+        scene =
             View3d.init
-                |> View3d.setSize { width = 768, height = 768 }
+                |> View3d.setSize flags.options.sizeFrame
                 |> View3d.setScene (geometry flags)
                 |> View3d.encompass
+
+        model =
+            { scene = scene
+            , background = makeColorHSL flags.options.background
+            , orthographic = not flags.options.perspective
+            , shadows = flags.options.shadows
+            , depthCueing = flags.options.depthCueing
+            }
     in
     ( model, Cmd.none )
 
@@ -70,10 +109,33 @@ init flags =
 view : Model -> Html.Html Msg
 view model =
     let
-        options =
+        defaultOptions =
             View3d.defaultOptions
+
+        fadeToBackground =
+            if model.depthCueing then
+                defaultOptions.fadeToBackground
+
+            else
+                0.0
+
+        fadeToBlue =
+            if model.depthCueing then
+                defaultOptions.fadeToBlue
+
+            else
+                0.0
+
+        options =
+            { defaultOptions
+                | backgroundColor = model.background
+                , orthogonalView = model.orthographic
+                , drawShadows = model.shadows
+                , fadeToBackground = fadeToBackground
+                , fadeToBlue = fadeToBlue
+            }
     in
-    Html.div [] [ View3d.view identity model options ]
+    Html.div [] [ View3d.view identity model.scene options ]
 
 
 
@@ -83,8 +145,11 @@ view model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        ( newModel, _ ) =
-            View3d.update msg model
+        ( newScene, _ ) =
+            View3d.update msg model.scene
+
+        newModel =
+            { model | scene = newScene }
     in
     ( newModel, Cmd.none )
 
@@ -95,7 +160,16 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    View3d.subscriptions identity model
+    View3d.subscriptions identity model.scene
+
+
+
+-- Helpers
+
+
+makeColorHSL : ColorHSL -> Color.Color
+makeColorHSL { hue, saturation, lightness } =
+    Color.hsl hue saturation lightness
 
 
 
@@ -105,6 +179,15 @@ subscriptions model =
 geometry : Flags -> List (Instance coords)
 geometry flags =
     let
+        matSticks =
+            flags.options.colorSticks |> makeColorHSL |> baseMaterial
+
+        matBalls =
+            flags.options.colorBalls |> makeColorHSL |> baseMaterial
+
+        matCell =
+            flags.options.colorCell |> makeColorHSL |> baseMaterial
+
         toCartesian =
             listToCellTransform flags.cell
 
@@ -117,22 +200,22 @@ geometry flags =
         balls =
             flags.points
                 |> List.map (listToPoint >> transformPoint)
-                |> makeBalls ballMaterial 0.2
+                |> makeBalls matBalls 0.2
 
         corners =
             unitCell.points
                 |> List.map (listToPoint >> transformPoint)
-                |> makeBalls cellMaterial 0.01
+                |> makeBalls matCell 0.01
 
         sticks =
             flags.edges
                 |> List.map (listToEdge >> transformEdge)
-                |> makeSticks stickMaterial 0.08
+                |> makeSticks matSticks 0.08
 
         edges =
             unitCell.edges
                 |> List.map (listToEdge >> transformEdge)
-                |> makeSticks cellMaterial 0.01
+                |> makeSticks matCell 0.01
     in
     balls ++ corners ++ sticks ++ edges
 
@@ -187,25 +270,9 @@ makeSticks material radius coordinates =
     List.filterMap makeInstance params
 
 
-stickMaterial : View3d.Material
-stickMaterial =
-    { color = Color.hsl 0.13 0.9 0.7
-    , roughness = 0.5
-    , metallic = 0.1
-    }
-
-
-ballMaterial : View3d.Material
-ballMaterial =
-    { color = Color.hsl 0.0 0.6 0.5
-    , roughness = 0.5
-    , metallic = 0.1
-    }
-
-
-cellMaterial : View3d.Material
-cellMaterial =
-    { color = Color.hsl 0.67 0.5 0.5
+baseMaterial : Color.Color -> View3d.Material
+baseMaterial color =
+    { color = color
     , roughness = 0.5
     , metallic = 0.1
     }
