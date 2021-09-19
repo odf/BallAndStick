@@ -1,5 +1,6 @@
-module Main exposing (main)
+port module Main exposing (main)
 
+import Array exposing (Array)
 import Axis3d
 import Browser
 import Color
@@ -19,7 +20,7 @@ import View3d.Instance as Instance exposing (Instance)
 
 
 type alias Flags =
-    { structure : Structure
+    { structures : Array Structure
     , options : OptionsJS
     }
 
@@ -29,6 +30,11 @@ type alias Structure =
     , edges : List (List Float)
     , cell : List Float
     }
+
+
+emptyStructure : Structure
+emptyStructure =
+    { points = [], edges = [], cell = [] }
 
 
 type alias OptionsJS =
@@ -62,6 +68,9 @@ type WorldCoordinates
 
 type alias Model =
     { scene : View3d.Model WorldCoordinates
+    , structures : Array Structure
+    , options : OptionsJS
+    , selectedStructure : Int
     , background : Color.Color
     , orthographic : Bool
     , shadows : Bool
@@ -69,8 +78,12 @@ type alias Model =
     }
 
 
-type alias Msg =
-    View3d.Msg
+port selectStructure : (Int -> msg) -> Sub msg
+
+
+type Msg
+    = ViewMsg View3d.Msg
+    | Selection Int
 
 
 main : Program Flags Model Msg
@@ -90,14 +103,21 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
+        structure =
+            Array.get 0 flags.structures
+                |> Maybe.withDefault emptyStructure
+
         scene =
             View3d.init
                 |> View3d.setSize flags.options.sizeFrame
-                |> View3d.setScene (geometry flags)
+                |> View3d.setScene (geometry structure flags.options)
                 |> View3d.encompass
 
         model =
             { scene = scene
+            , structures = flags.structures
+            , options = flags.options
+            , selectedStructure = 0
             , background = makeColorHSL flags.options.background
             , orthographic = not flags.options.perspective
             , shadows = flags.options.shadows
@@ -140,7 +160,7 @@ view model =
                 , fadeToBlue = fadeToBlue
             }
     in
-    Html.div [] [ View3d.view identity model.scene options ]
+    Html.div [] [ View3d.view ViewMsg model.scene options ]
 
 
 
@@ -149,14 +169,29 @@ view model =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        ( newScene, _ ) =
-            View3d.update msg model.scene
+    case msg of
+        ViewMsg vmsg ->
+            let
+                ( newScene, _ ) =
+                    View3d.update vmsg model.scene
 
-        newModel =
-            { model | scene = newScene }
-    in
-    ( newModel, Cmd.none )
+                newModel =
+                    { model | scene = newScene }
+            in
+            ( newModel, Cmd.none )
+
+        Selection index ->
+            let
+                structure =
+                    Array.get index model.structures
+                        |> Maybe.withDefault emptyStructure
+
+                scene =
+                    model.scene
+                        |> View3d.setScene (geometry structure model.options)
+                        |> View3d.encompass
+            in
+            ( { model | scene = scene }, Cmd.none )
 
 
 
@@ -165,7 +200,10 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    View3d.subscriptions identity model.scene
+    Sub.batch
+        [ View3d.subscriptions ViewMsg model.scene
+        , selectStructure Selection
+        ]
 
 
 
@@ -181,20 +219,20 @@ makeColorHSL { hue, saturation, lightness } =
 -- Geometry
 
 
-geometry : Flags -> List (Instance coords)
-geometry flags =
+geometry : Structure -> OptionsJS -> List (Instance coords)
+geometry structure options =
     let
         matSticks =
-            flags.options.colorSticks |> makeColorHSL |> baseMaterial
+            options.colorSticks |> makeColorHSL |> baseMaterial
 
         matBalls =
-            flags.options.colorBalls |> makeColorHSL |> baseMaterial
+            options.colorBalls |> makeColorHSL |> baseMaterial
 
         matCell =
-            flags.options.colorCell |> makeColorHSL |> baseMaterial
+            options.colorCell |> makeColorHSL |> baseMaterial
 
         toCartesian =
-            listToCellTransform flags.structure.cell
+            listToCellTransform structure.cell
 
         transformPoint p =
             Mat4.transform toCartesian p
@@ -203,7 +241,7 @@ geometry flags =
             ( transformPoint from, transformPoint to )
 
         balls =
-            flags.structure.points
+            structure.points
                 |> List.map (listToPoint >> transformPoint)
                 |> makeBalls matBalls 0.2
 
@@ -213,7 +251,7 @@ geometry flags =
                 |> makeBalls matCell 0.01
 
         sticks =
-            flags.structure.edges
+            structure.edges
                 |> List.map (listToEdge >> transformEdge)
                 |> makeSticks matSticks 0.08
 
