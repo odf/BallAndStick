@@ -43,9 +43,14 @@ type alias OptionsJS =
     , perspective : Bool
     , shadows : Bool
     , depthCueing : Bool
+    , outlines : Bool
+    , drawCellFrame : Bool
     , colorSticks : ColorHSL
     , colorBalls : ColorHSL
     , colorCell : ColorHSL
+    , radiusSticks : Float
+    , radiusBalls : Float
+    , radiusCellFrame : Float
     }
 
 
@@ -75,6 +80,8 @@ type alias Model =
     , orthographic : Bool
     , shadows : Bool
     , depthCueing : Bool
+    , outlines : Bool
+    , drawCellFrame : Bool
     }
 
 
@@ -122,6 +129,8 @@ init flags =
             , orthographic = not flags.options.perspective
             , shadows = flags.options.shadows
             , depthCueing = flags.options.depthCueing
+            , outlines = flags.options.outlines
+            , drawCellFrame = flags.options.drawCellFrame
             }
     in
     ( model, Cmd.none )
@@ -158,6 +167,9 @@ view model =
                 , drawShadows = model.shadows
                 , fadeToBackground = fadeToBackground
                 , fadeToBlue = fadeToBlue
+                , addOutlines = model.outlines
+                , outlineWidth = 0.1
+                , outlineColor = model.background
             }
     in
     Html.div [] [ View3d.view ViewMsg model.scene options ]
@@ -243,24 +255,28 @@ geometry structure options =
         balls =
             structure.points
                 |> List.map (listToPoint >> transformPoint)
-                |> makeBalls matBalls 0.2
-
-        corners =
-            unitCell.points
-                |> List.map (listToPoint >> transformPoint)
-                |> makeBalls matCell 0.01
+                |> makeBalls matBalls options.radiusBalls
 
         sticks =
             structure.edges
                 |> List.map (listToEdge >> transformEdge)
-                |> makeSticks matSticks 0.08
+                |> makeSticks matSticks options.radiusSticks
+
+        corners =
+            unitCell.points
+                |> List.map (listToPoint >> transformPoint)
+                |> makeBalls matCell options.radiusCellFrame
 
         edges =
             unitCell.edges
                 |> List.map (listToEdge >> transformEdge)
-                |> makeSticks matCell 0.01
+                |> makeSticks matCell options.radiusCellFrame
     in
-    balls ++ corners ++ sticks ++ edges
+    if options.drawCellFrame then
+        balls ++ sticks ++ corners ++ edges
+
+    else
+        balls ++ sticks
 
 
 positionVector : Vec3 -> Vector3d.Vector3d Length.Meters coords
