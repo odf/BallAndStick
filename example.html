@@ -98,14 +98,19 @@
     };
 
     var options = {
-      sizeFrame: { width: 600, height: 600 },
+      sizeFrame: { width: 400, height: 400 },
       background: { hue: 0.0, saturation: 0.0, lightness: 1.0 },
       perspective: true,
       shadows: true,
       depthCueing: true,
+      outlines: true,
+      drawCellFrame: true,
       colorSticks: { hue: 0.13, saturation: 0.9, lightness: 0.7 },
       colorBalls: { hue: 0.0, saturation: 0.6, lightness: 0.5 },
-      colorCell: { hue: 0.67, saturation: 0.5, lightness: 0.5 }
+      colorCell: { hue: 0.67, saturation: 0.8, lightness: 0.8 },
+      radiusSticks: 0.06,
+      radiusBalls: 0.15,
+      radiusCellFrame: 0.005
     };
 
     var app = Elm.Main.init({
