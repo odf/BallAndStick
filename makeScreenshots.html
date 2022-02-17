@@ -1,0 +1,174 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Main</title>
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <pre id="elm"></pre>
+
+  <script type="text/javascript" src="dist/view3d.js"></script>
+
+  <script>
+    const fileSaver = () => {
+      const link = document.createElement('a');
+
+      link.style.display = 'none';
+      document.body.appendChild(link);
+
+      return (blob, filename) => {
+        console.log("Writing " + filename + "...");
+        link.download = filename;
+        link.href = URL.createObjectURL(blob);
+        link.click();
+      }
+    };
+
+    const saveFile = fileSaver();
+
+    const saveScreenshot = (saveFile, filename, backgroundColor) => {
+      const srcCanvas =
+        document.querySelector('#main-3d-canvas canvas') ||
+        document.querySelector('canvas#main-3d-canvas')
+
+      if (srcCanvas) {
+        window.requestAnimationFrame(() => {
+          const canvas = document.createElement("canvas");
+          canvas.width = srcCanvas.width;
+          canvas.height = srcCanvas.height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = backgroundColor;
+          ctx.fillRect(0, 0, srcCanvas.width, srcCanvas.height);
+          ctx.drawImage(srcCanvas, 0, 0);
+
+          canvas.toBlob(blob => saveFile(blob, filename));
+        });
+      }
+      else
+        console.log('ERROR: could not save screenshot - no canvas element found');
+    };
+
+    var srs = {
+      points: [
+        [0.125, 0.125, 0.125],
+        [0.125, 0.875, 0.375],
+        [0.375, 0.125, 0.875],
+        [0.875, 0.375, 0.125],
+        [0.625, 0.625, 0.625],
+        [0.375, 0.875, 0.625],
+        [0.625, 0.375, 0.875],
+        [0.875, 0.625, 0.375]
+      ],
+      edges: [
+        [0.125, 0.125, 0.125, 0.125, 0.0, 0.25],
+        [0.125, 0.125, 0.125, 0.25, 0.125, 0.0],
+        [0.125, 0.125, 0.125, 0.0, 0.25, 0.125],
+        [0.125, 0.875, 0.375, 0.125, 1.0, 0.25],
+        [0.125, 0.875, 0.375, 0.25, 0.875, 0.5],
+        [0.125, 0.875, 0.375, 0.0, 0.75, 0.375],
+        [0.375, 0.125, 0.875, 0.375, 0.0, 0.75],
+        [0.375, 0.125, 0.875, 0.25, 0.125, 1.0],
+        [0.375, 0.125, 0.875, 0.5, 0.25, 0.875],
+        [0.875, 0.375, 0.125, 0.75, 0.375, 0.0],
+        [0.875, 0.375, 0.125, 0.875, 0.5, 0.25],
+        [0.875, 0.375, 0.125, 1.0, 0.25, 0.125],
+        [0.625, 0.625, 0.625, 0.5, 0.75, 0.625],
+        [0.625, 0.625, 0.625, 0.625, 0.5, 0.75],
+        [0.625, 0.625, 0.625, 0.75, 0.625, 0.5],
+        [0.375, 0.875, 0.625, 0.25, 0.875, 0.5],
+        [0.375, 0.875, 0.625, 0.5, 0.75, 0.625],
+        [0.375, 0.875, 0.625, 0.375, 1.0, 0.75],
+        [0.625, 0.375, 0.875, 0.5, 0.25, 0.875],
+        [0.625, 0.375, 0.875, 0.625, 0.5, 0.75],
+        [0.625, 0.375, 0.875, 0.75, 0.375, 1.0],
+        [0.875, 0.625, 0.375, 0.875, 0.5, 0.25],
+        [0.875, 0.625, 0.375, 0.75, 0.625, 0.5],
+        [0.875, 0.625, 0.375, 1.0, 0.75, 0.375]
+      ],
+      cell: [2.82843, 2.82843, 2.82843, 90.0, 90.0, 90.0]
+    };
+
+    var nbo = {
+      points: [
+        [0.0, 0.0, 0.5],
+        [0.0, 0.5, 0.0],
+        [0.5, 0.0, 0.0],
+        [0.0, 0.5, 0.5],
+        [0.5, 0.0, 0.5],
+        [0.5, 0.5, 0.0]
+      ],
+      edges: [
+        [0.0, 0.0, 0.5, 0.0, 0.25, 0.5],
+        [0.0, 0.0, 0.5, 0.25, 0.0, 0.5],
+        [0.0, 0.0, 0.5, 0.0, -0.25, 0.5],
+        [0.0, 0.0, 0.5, -0.25, 0.0, 0.5],
+        [0.0, 0.5, 0.0, 0.0, 0.5, 0.25],
+        [0.0, 0.5, 0.0, 0.0, 0.5, -0.25],
+        [0.0, 0.5, 0.0, 0.25, 0.5, 0.0],
+        [0.0, 0.5, 0.0, -0.25, 0.5, 0.0],
+        [0.5, 0.0, 0.0, 0.5, 0.0, 0.25],
+        [0.5, 0.0, 0.0, 0.5, 0.0, -0.25],
+        [0.5, 0.0, 0.0, 0.5, 0.25, 0.0],
+        [0.5, 0.0, 0.0, 0.5, -0.25, 0.0],
+        [0.0, 0.5, 0.5, 0.0, 0.25, 0.5],
+        [0.0, 0.5, 0.5, 0.0, 0.5, 0.25],
+        [0.0, 0.5, 0.5, 0.0, 0.5, 0.75],
+        [0.0, 0.5, 0.5, 0.0, 0.75, 0.5],
+        [0.5, 0.0, 0.5, 0.25, 0.0, 0.5],
+        [0.5, 0.0, 0.5, 0.5, 0.0, 0.25],
+        [0.5, 0.0, 0.5, 0.5, 0.0, 0.75],
+        [0.5, 0.0, 0.5, 0.75, 0.0, 0.5],
+        [0.5, 0.5, 0.0, 0.25, 0.5, 0.0],
+        [0.5, 0.5, 0.0, 0.5, 0.25, 0.0],
+        [0.5, 0.5, 0.0, 0.5, 0.75, 0.0],
+        [0.5, 0.5, 0.0, 0.75, 0.5, 0.0]
+      ],
+      cell: [2.0, 2.0, 2.0, 90.0, 90.0, 90.0]
+    };
+
+    var options = {
+      sizeFrame: { width: 400, height: 400 },
+      background: { hue: 0.0, saturation: 0.0, lightness: 1.0 },
+      perspective: true,
+      shadows: true,
+      depthCueing: true,
+      outlines: true,
+      drawCellFrame: true,
+      colorSticks: { hue: 0.13, saturation: 0.9, lightness: 0.7 },
+      colorBalls: { hue: 0.0, saturation: 0.6, lightness: 0.5 },
+      colorCell: { hue: 0.67, saturation: 0.8, lightness: 0.8 },
+      radiusSticks: 0.06,
+      radiusBalls: 0.15,
+      radiusCellFrame: 0.005
+    };
+
+    var structures = [srs, nbo, srs, nbo];
+
+    var app = Elm.Main.init({
+      node: document.getElementById("elm"),
+      flags: {
+        structures: structures,
+        options: options
+      }
+    });
+
+    app.ports.toJS.subscribe(i => {
+      saveScreenshot(saveFile, "gavrog" + i + ".png");
+      if (i + 1 < structures.length)
+        setTimeout(() => app.ports.selectStructure.send(i + 1), 500);
+    });
+
+  </script>
+
+</body>
+
+</html>
