@@ -8,6 +8,7 @@ import Dict
 import Direction3d
 import Frame3d exposing (Frame3d)
 import Html
+import Json.Encode as Encode
 import Length
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
@@ -88,6 +89,9 @@ type alias Model =
 port selectStructure : (Int -> msg) -> Sub msg
 
 
+port toJS : Encode.Value -> Cmd msg
+
+
 type Msg
     = ViewMsg View3d.Msg
     | Selection Int
@@ -119,6 +123,7 @@ init flags =
                 |> View3d.setSize flags.options.sizeFrame
                 |> View3d.setScene (geometry structure flags.options)
                 |> View3d.encompass
+                |> View3d.requestRedraw
 
         model =
             { scene = scene
@@ -133,7 +138,7 @@ init flags =
             , drawCellFrame = flags.options.drawCellFrame
             }
     in
-    ( model, Cmd.none )
+    ( model, toJS <| Encode.int 0 )
 
 
 
@@ -202,8 +207,9 @@ update msg model =
                     model.scene
                         |> View3d.setScene (geometry structure model.options)
                         |> View3d.encompass
+                        |> View3d.requestRedraw
             in
-            ( { model | scene = scene }, Cmd.none )
+            ( { model | scene = scene }, toJS <| Encode.int index )
 
 
 
