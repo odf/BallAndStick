@@ -1,5 +1,6 @@
 port module Main exposing (main)
 
+import Angle
 import Array exposing (Array)
 import Axis3d
 import Browser
@@ -52,6 +53,8 @@ type alias OptionsJS =
     , radiusSticks : Float
     , radiusBalls : Float
     , radiusCellFrame : Float
+    , viewTheta : Float
+    , viewPhi : Float
     }
 
 
@@ -118,11 +121,19 @@ init flags =
             Array.get 0 flags.structures
                 |> Maybe.withDefault emptyStructure
 
+        theta =
+            Angle.degrees flags.options.viewTheta
+
+        phi =
+            Angle.degrees flags.options.viewPhi
+
         scene =
             View3d.init
                 |> View3d.setSize flags.options.sizeFrame
                 |> View3d.setScene (geometry structure flags.options)
                 |> View3d.encompass
+                |> View3d.rotateBy Direction3d.y theta
+                |> View3d.rotateBy Direction3d.x phi
                 |> View3d.requestRedraw
 
         model =

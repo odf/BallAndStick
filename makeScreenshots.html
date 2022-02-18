@@ -90,9 +90,9 @@
     var options = {
       sizeFrame: { width: 400, height: 400 },
       background: { hue: 0.0, saturation: 0.0, lightness: 1.0 },
-      perspective: true,
-      shadows: true,
-      depthCueing: true,
+      perspective: false,
+      shadows: false,
+      depthCueing: false,
       outlines: true,
       drawCellFrame: true,
       colorSticks: { hue: 0.13, saturation: 0.9, lightness: 0.7 },
@@ -100,7 +100,9 @@
       colorCell: { hue: 0.67, saturation: 0.8, lightness: 0.8 },
       radiusSticks: 0.06,
       radiusBalls: 0.15,
-      radiusCellFrame: 0.005
+      radiusCellFrame: 0.01,
+      viewTheta: -23,
+      viewPhi: 10
     };
 
     const run = () => {
